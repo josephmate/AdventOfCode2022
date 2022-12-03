@@ -3,4 +3,4 @@ if (Test-Path -Path "customjar") {
 } else {
   jlink --output customjar --add-modules java.base
 }
-.\customjar\bin\java.exe -cp out Main
+.\customjar\bin\java.exe -cp out Main 1

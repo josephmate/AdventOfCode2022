@@ -58,39 +58,24 @@ import java.util.Arrays;
  */
 public class Main {
 
-    private static int part1(String s) {
-        var elves = s.split("\n\n");
-        return Arrays.stream(elves)
-            .mapToInt((var elf) -> elf.lines()
-                .mapToInt(Integer::parseInt)
-                .sum()
-            )
-            .max()
-            .orElseThrow();
-    }
-
-    private static int part2(String s) {
-        final var elves = s.split("\n\n");
-        return Arrays.stream(elves)
-            .mapToInt((var elf) -> elf.lines()
-                .mapToInt(Integer::parseInt)
-                .sum()
-            )
-            .sorted()
-            .skip(elves.length-3)
-            .sum();
-    }
-
     public static void main(String[] args) throws IOException {
-        var sample = Files.readString(Path.of("input/day_1_sample.txt"));
-        var input = Files.readString(Path.of("input/day_1.txt"));
+        var day = Integer.parseInt(args[0]);
+        var sample = Files.readString(Path.of("input/day_"+day+"_sample.txt"));
+        var input = Files.readString(Path.of("input/day_"+day+".txt"));
+        var samplePart1Expected = Files.readString(Path.of("input/day_"+day+"_sample_part1_expected.txt"));
+        var samplePart2Expected = Files.readString(Path.of("input/day_"+day+"_sample_part2_expected.txt"));
 
-        System.out.println("Expected: 24000");
-        System.out.println("Actual:   " + part1(sample));
-        System.out.println(part1(input));
+        var solution = switch(day) {
+            case 1 -> new Day1();
+            default -> null;
+        };
 
-        System.out.println("Expected: 45000");
-        System.out.println("Actual:   " + part2(sample));
-        System.out.println(part2(input));
+        System.out.println("Expected: " + samplePart1Expected);
+        System.out.println("Actual:   " + solution.part1(sample));
+        System.out.println(solution.part1(input));
+
+        System.out.println("Expected: " + samplePart2Expected);
+        System.out.println("Actual:   " + solution.part2(sample));
+        System.out.println(solution.part2(input));
     }
 }
