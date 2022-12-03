@@ -63,10 +63,10 @@ public class Main {
         var sample = Files.readString(Path.of("input/day_"+day+"_sample.txt"));
         var input = Files.readString(Path.of("input/day_"+day+".txt"));
         var samplePart1Expected = Files.readString(Path.of("input/day_"+day+"_sample_part1_expected.txt"));
-        var samplePart2Expected = Files.readString(Path.of("input/day_"+day+"_sample_part2_expected.txt"));
 
         var solution = switch(day) {
             case 1 -> new Day1();
+            case 2 -> new Day2();
             default -> null;
         };
 
@@ -74,8 +74,12 @@ public class Main {
         System.out.println("Actual:   " + solution.part1(sample));
         System.out.println(solution.part1(input));
 
-        System.out.println("Expected: " + samplePart2Expected);
-        System.out.println("Actual:   " + solution.part2(sample));
-        System.out.println(solution.part2(input));
+        var samplePart2ExpectedPath = Path.of("input/day_"+day+"_sample_part2_expected.txt");
+        if (samplePart2ExpectedPath.toFile().exists()) {
+            var samplePart2Expected = Files.readString(samplePart2ExpectedPath);
+            System.out.println("Expected: " + samplePart2Expected);
+            System.out.println("Actual:   " + solution.part2(sample));
+            System.out.println(solution.part2(input));
+        }
     }
 }
