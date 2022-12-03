@@ -1,5 +1,3 @@
-import java.util.Arrays;
-
 /**
  * --- Day 2: Rock Paper Scissors ---
  *
@@ -80,7 +78,12 @@ public class Day2 implements Solution {
     private static final int DRAW = 3;
     private static final int LOSE = 0;
 
-    private static int score(String[] round) {
+    //  (1 for Rock, 2 for Paper, and 3 for Scissors)
+    private static final int ROCK = 1;
+    private static final int PAPER = 2;
+    private static final int SCISSORS = 3;
+
+    private static int scorePart1(String[] round) {
         // A for Rock, B for Paper, and C for Scissors.
         // X for Rock, Y for Paper, and Z for Scissors.
         //  (1 for Rock, 2 for Paper, and 3 for Scissors)
@@ -88,21 +91,21 @@ public class Day2 implements Solution {
         //         (0 if you lost, 3 if the round was a draw, and 6 if you won)
         return switch (round[0]) {
             case "A" -> switch (round[1]) { // ROCK 1
-                case "X" -> 1 + DRAW; // ROCK 1
-                case "Y" -> 2 + WIN; // PAPER 2
-                case "Z" -> 3 + LOSE;  // SCISSORS 3
+                case "X" -> ROCK + DRAW; // ROCK 1
+                case "Y" -> PAPER + WIN; // PAPER 2
+                case "Z" -> SCISSORS + LOSE;  // SCISSORS 3
                 default -> throw new IllegalStateException();
             };
             case "B" -> switch (round[1]) { // PAPER 2
-                case "X" -> 1 + LOSE; // ROCK 1
-                case "Y" -> 2 + DRAW; // PAPER 2
-                case "Z" -> 3 + WIN;  // SCISSORS 3
+                case "X" -> ROCK+ LOSE; // ROCK 1
+                case "Y" -> PAPER + DRAW; // PAPER 2
+                case "Z" -> SCISSORS + WIN;  // SCISSORS 3
                 default -> throw new IllegalStateException();
             };
             case "C" -> switch (round[1]) { // SCISSORS 3
-                case "X" -> 1 + WIN; // ROCK 1
-                case "Y" -> 2 + LOSE; // PAPER 2
-                case "Z" -> 3 + DRAW;  // SCISSORS 3
+                case "X" -> ROCK + WIN; // ROCK 1
+                case "Y" -> PAPER + LOSE; // PAPER 2
+                case "Z" -> SCISSORS + DRAW;  // SCISSORS 3
                 default -> throw new IllegalStateException();
             };
             default -> throw new IllegalStateException();
@@ -112,12 +115,44 @@ public class Day2 implements Solution {
     private static int part1Impl(String s) {
         return s.lines()
             .map(round -> round.split(" "))
-            .mapToInt(Day2::score)
+            .mapToInt(Day2::scorePart1)
             .sum();
     }
 
+    private static int scorePart2(String[] round) {
+        // A for Rock, B for Paper, and C for Scissors.
+        // X means you need to lose, Y means you need to end the round in a draw, and Z means you need to win
+        //  (1 for Rock, 2 for Paper, and 3 for Scissors)
+        //  plus the score for the outcome of the round
+        //         (0 if you lost, 3 if the round was a draw, and 6 if you won)
+        return switch (round[0]) {
+            case "A" -> switch (round[1]) { // ROCK 1
+                case "X" -> LOSE + SCISSORS;
+                case "Y" -> DRAW + ROCK;
+                case "Z" -> WIN + PAPER;
+                default -> throw new IllegalStateException();
+            };
+            case "B" -> switch (round[1]) { // PAPER 2
+                case "X" -> LOSE + ROCK;
+                case "Y" -> DRAW + PAPER;
+                case "Z" -> WIN + SCISSORS;
+                default -> throw new IllegalStateException();
+            };
+            case "C" -> switch (round[1]) { // SCISSORS 3
+                case "X" -> LOSE + PAPER;
+                case "Y" -> DRAW + SCISSORS;
+                case "Z" -> WIN + ROCK;
+                default -> throw new IllegalStateException();
+            };
+            default -> throw new IllegalStateException();
+        };
+    }
+
     private static int part2Impl(String s) {
-        return 0;
+        return s.lines()
+            .map(round -> round.split(" "))
+            .mapToInt(Day2::scorePart2)
+            .sum();
     }
 
 }
