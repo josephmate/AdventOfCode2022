@@ -1,3 +1,5 @@
+package aoc;
+
 import java.util.Arrays;
 
 /**

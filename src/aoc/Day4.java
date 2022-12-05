@@ -1,6 +1,6 @@
-import java.util.HashSet;
+package aoc;
+
 import java.util.List;
-import java.util.Set;
 
 /**
  * --- Day 4: Camp Cleanup ---
@@ -108,7 +108,6 @@ public class Day4 implements Solution {
                     && assignmentPair.firstEnd >= assignmentPair.secondEnd)
             ;
     }
-
 
     private static long part1Impl(String s) {
         return s.lines()
