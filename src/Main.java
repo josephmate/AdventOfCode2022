@@ -14,6 +14,7 @@ public class Main {
             case 1 -> new Day1();
             case 2 -> new Day2();
             case 3 -> new Day3();
+            case 4 -> new Day4();
             default -> null;
         };
 
