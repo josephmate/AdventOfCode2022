@@ -3,14 +3,42 @@ package aoc;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 
 public class Main {
 
     public static void main(String[] args) throws IOException {
         var day = Integer.parseInt(args[0]);
-        var sample = Files.readString(Path.of("input/day_"+day+"_sample.txt"));
+        var numOfSamples = 1;
+        if (args.length >= 2) {
+            numOfSamples = Integer.parseInt(args[1]);
+        }
+        var samples = new ArrayList<String>();
+        if (numOfSamples == 1) {
+            samples.add(Files.readString(Path.of("input/day_"+day+"_sample.txt")));
+        } else {
+            for (int i = 1; i <= numOfSamples; i++) {
+                samples.add(Files.readString(Path.of("input/day_"+day+"_sample" + (i) + ".txt")));
+            }
+        }
         var input = Files.readString(Path.of("input/day_"+day+".txt"));
-        var samplePart1Expected = Files.readString(Path.of("input/day_"+day+"_sample_part1_expected.txt"));
+        var samplesPart1Expected = new ArrayList<>();
+        if (numOfSamples == 1) {
+            samplesPart1Expected.add(Files.readString(Path.of("input/day_"+day+"_sample_part1_expected.txt")));
+        } else {
+            for (int i = 1; i <= numOfSamples; i++) {
+                samplesPart1Expected.add(Files.readString(Path.of("input/day_"+day+"_sample" + i + "_part1_expected.txt")));
+            }
+        }
+
+        var samplesPart2Expected = new ArrayList<>();
+        if (numOfSamples == 1) {
+            samplesPart2Expected.add(Files.readString(Path.of("input/day_"+day+"_sample_part2_expected.txt")));
+        } else {
+            for (int i = 1; i <= numOfSamples; i++) {
+                samplesPart2Expected.add(Files.readString(Path.of("input/day_"+day+"_sample" + i + "_part2_expected.txt")));
+            }
+        }
 
         var solution = switch(day) {
             case 1 -> new Day1();
@@ -18,19 +46,25 @@ public class Main {
             case 3 -> new Day3();
             case 4 -> new Day4();
             case 5 -> new Day5();
+            case 6 -> new Day6();
             default -> null;
         };
 
-        System.out.println("Expected: " + samplePart1Expected);
-        System.out.println("Actual:   " + solution.part1(sample));
-        System.out.println(solution.part1(input));
-
-        var samplePart2ExpectedPath = Path.of("input/day_"+day+"_sample_part2_expected.txt");
-        if (samplePart2ExpectedPath.toFile().exists()) {
-            var samplePart2Expected = Files.readString(samplePart2ExpectedPath);
-            System.out.println("Expected: " + samplePart2Expected);
-            System.out.println("Actual:   " + solution.part2(sample));
-            System.out.println(solution.part2(input));
+        for (int i = 1; i <= numOfSamples; i++) {
+            System.out.println("Sample  " + i);
+            System.out.println("Expected: " + samplesPart1Expected.get(i-1));
+            System.out.println("Actual:   " + solution.part1(samples.get(i-1)));
         }
+        System.out.println("==============================");
+        System.out.println(solution.part1(input));
+        System.out.println("==============================");
+
+
+        for (int i = 1; i <= numOfSamples; i++) {
+            System.out.println("Sample  " + i);
+            System.out.println("Expected: " + samplesPart2Expected.get(i-1));
+            System.out.println("Actual:   " + solution.part2(samples.get(i-1)));
+        }
+        System.out.println(solution.part2(input));
     }
 }
