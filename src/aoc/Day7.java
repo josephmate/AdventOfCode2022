@@ -1,10 +1,10 @@
 package aoc;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  *--- Day 7: No Space Left On Device ---
@@ -100,10 +100,37 @@ import java.util.stream.Collectors;
  *     the size of every file.
  *
  * To begin, find all of the directories with a total size of at most 100000,
- * then calculate the sum of their total sizes. In the example above, these directories are a and e; the sum of their total sizes is 95437 (94853 + 584). (As in this example, this process can count files more than once!)
+ * then calculate the sum of their total sizes. In the example above, these directories are a and e;
+ * the sum of their total sizes is 95437 (94853 + 584). (As in this example, this process can count files more than once!)
  *
  * Find all of the directories with a total size of at most 100000. What is the sum of the total
  * sizes of those directories?
+ *
+ * --- Part Two ---
+ *
+ * Now, you're ready to choose a directory to delete.
+ *
+ * The total disk space available to the filesystem is 70000000. To run the update, you need unused
+ * space of at least 30000000. You need to find a directory you can delete that will free up enough
+ * space to run the update.
+ *
+ * In the example above, the total size of the outermost directory (and thus the total amount of used space) is 48381165;
+ * this means that the size of the unused space must currently be 21618835, which isn't quite the 30000000 required by the update.
+ * Therefore, the update still requires a directory with total size of at least 8381165 to be deleted before it can run.
+ *
+ * To achieve this, you have the following options:
+ *                                                             (30000000)
+ *     Delete directory e, which would increase unused space by 584.
+ *     Delete directory a, which would increase unused space by 94853.
+ *     Delete directory d, which would increase unused space by 24933642.
+ *     Delete directory /, which would increase unused space by 48381165.
+ *
+ * Directories e and a are both too small; deleting them would not free up enough space. However,
+ * directories d and / are both big enough! Between these, choose the smallest: d, increasing
+ * unused space by 24933642.
+ *
+ * Find the smallest directory that, if deleted, would free up enough space on the filesystem
+ * to run the update. What is the total size of that directory?
  */
 public class Day7 {
 
@@ -137,50 +164,130 @@ public class Day7 {
     }
 
     private static class MutableDirectory {
-        long localSize;
+        long directSize;
         boolean computedCost;
         long indirectSize;
 
-        List<MutableDirectory> subDirectories = new ArrayList<>();
+        Map<String, MutableDirectory> subDirectories = new HashMap<>();
     }
 
-    private static int part1(String input) {
-        Deque<String> pathSoFar = new ArrayDeque<>();
+    private static long calculateDirectorySize(MutableDirectory cwd) {
+        if (cwd.computedCost) {
+            return cwd.indirectSize;
+        }
 
-        List<Object> commands = input.lines()
+        long indirectSize = cwd.directSize;
+        for(MutableDirectory subDir : cwd.subDirectories.values()) {
+            indirectSize += calculateDirectorySize(subDir);
+        }
+
+        cwd.computedCost = true;
+        cwd.indirectSize = indirectSize;
+        return indirectSize;
+    }
+
+    private static long sumAtMost(MutableDirectory cwd, long limit) {
+        long sum = 0;
+        if (cwd.indirectSize <= limit) {
+            sum += cwd.indirectSize;
+        }
+
+        for(MutableDirectory subDir : cwd.subDirectories.values()) {
+            sum += sumAtMost(subDir, limit);
+        }
+
+        return sum;
+    }
+
+    private static MutableDirectory makeDirectories(String input) {
+        Deque<MutableDirectory> pathSoFar = new ArrayDeque<>();
+
+        Iterator<Object> commands = input.lines()
             .map(Day7::parse)
-            .collect(Collectors.toList());
+            .iterator();
 
-        MutableDirectory cwd = null;
+        MutableDirectory root = new MutableDirectory();
+        MutableDirectory cwd = root;
+        commands.next(); // skip root
 
-        for(Object command : commands) {
+        while(commands.hasNext()) {
+            Object command = commands.next();
             switch (command) {
                 case CD(String name):
-                    pathSoFar.addLast(name);
+                    //System.out.println("cd " + name);
+                    if ("..".equals(name)) {
+                        cwd = pathSoFar.removeLast();
+                    } else {
+                        pathSoFar.addLast(cwd);
+                        cwd = cwd.subDirectories.get(name);
+                    }
 
                     break;
                 case LS():
                     // NO OP
-                    System.out.println("$ ls");
+                    //System.out.println("$ ls");
                     break;
                 case Directory(String name):
-                    System.out.println("dir " + name);
+                    //System.out.println("dir " + name);
+                    cwd.subDirectories.put(name, new MutableDirectory());
                     break;
                 case FileSize(long fileSize, String name):
-                    System.out.println(fileSize + " " + name);
+                    //System.out.println(fileSize + " " + name);
+                    cwd.directSize += fileSize;
                     break;
                 default:
-                    throw new IllegalStateException("unreognized command: " + command);
+                    throw new IllegalStateException("unrecognized command: " + command);
+            }
+        }
+        calculateDirectorySize(root);
+
+        return root;
+    }
+
+    private static long part1(String input) {
+        MutableDirectory root = makeDirectories(input);
+        return sumAtMost(root, 100000L);
+    }
+
+    private static long findSmallest(MutableDirectory cwd, long spaceToFree) {
+        long smallestSoFar = Long.MAX_VALUE;
+        if (cwd.indirectSize >= spaceToFree) {
+            smallestSoFar = cwd.indirectSize;
+        }
+
+        for(MutableDirectory subDir : cwd.subDirectories.values()) {
+            long current = findSmallest(subDir, spaceToFree);
+            if (current < smallestSoFar) {
+                smallestSoFar = current;
             }
         }
 
-        return 0;
+        return smallestSoFar;
+    }
+
+    /**
+     * The total disk space available to the filesystem is 70000000.
+     * To run the update, you need unused space of at least 30000000.
+     */
+    private static long part2(String input) {
+        MutableDirectory root = makeDirectories(input);
+
+        //                 space we need  capacity     space we used
+        long spaceToFree = 30000000 - (70000000-root.indirectSize);
+
+
+
+        return findSmallest(root, spaceToFree);
     }
 
     public static void main(String[] args) {
         System.out.println(95437);
         System.out.println(part1(SAMPLE));
         System.out.println(part1(INPUT));
+        System.out.println("==========");
+        System.out.println(24933642);
+        System.out.println(part2(SAMPLE));
+        System.out.println(part2(INPUT));
     }
 
     private static final String SAMPLE = """
