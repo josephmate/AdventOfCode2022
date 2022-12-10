@@ -48,6 +48,7 @@ public class Main {
             case 5 -> new Day5();
             case 6 -> new Day6();
             case 8 -> new Day8();
+            case 9 -> new Day9();
             default -> null;
         };
 
@@ -57,7 +58,7 @@ public class Main {
             System.out.println("Actual:   " + solution.part1(samples.get(i-1)));
         }
         System.out.println("==============================");
-        System.out.println(solution.part1(input));
+        //System.out.println(solution.part1(input));
         System.out.println("==============================");
 
 
@@ -66,6 +67,6 @@ public class Main {
             System.out.println("Expected: " + samplesPart2Expected.get(i-1));
             System.out.println("Actual:   " + solution.part2(samples.get(i-1)));
         }
-        System.out.println(solution.part2(input));
+        //System.out.println(solution.part2(input));
     }
 }
