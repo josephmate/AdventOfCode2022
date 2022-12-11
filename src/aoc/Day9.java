@@ -725,7 +725,7 @@ import java.util.stream.Collectors;
  */
 public class Day9 implements Solution {
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     record Instruction(char direction, int numPositions) {
 
@@ -903,23 +903,24 @@ public class Day9 implements Solution {
                         }
                         knotPositions.set(knot, minDistCoord);
                     } else {
-                        int tailR = current.r;
-                        int tailC = current.c;
-                        switch (instruction.direction) {
-                            case 'R':
-                                tailC++;
-                                break;
-                            case 'L':
-                                tailC--;
-                                break;
-                            case 'U':
-                                tailR--;
-                                break;
-                            case 'D':
-                                tailR++;
-                                break;
+                        int minDist = Integer.MAX_VALUE;
+                        Coord minDistCoord = null;
+                        List<Coord> potentialCoords = List.of(
+                            new Coord(current.r, current.c + 1), // right
+                            new Coord(current.r, current.c - 1), // left
+                            new Coord(current.r- 1, current.c),  // up
+                            new Coord(current.r + 1, current.c)  // down
+                        );
+                        for (Coord potentialCoord : potentialCoords) {
+                            var dist = manDistance(prev, potentialCoord);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                minDistCoord = potentialCoord;
+                            }
                         }
-                        knotPositions.set(knot, new Coord(tailR, tailC));
+
+
+                        knotPositions.set(knot, minDistCoord);
                     }
                 }
                 visited.add(new Coord(
