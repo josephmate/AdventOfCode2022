@@ -47,9 +47,11 @@ public class Main {
             case 4 -> new Day4();
             case 5 -> new Day5();
             case 6 -> new Day6();
+            // run Day7 from Day's main
             case 8 -> new Day8();
             case 9 -> new Day9();
             case 10 -> new Day10();
+            case 11 -> new Day11();
             default -> null;
         };
 
