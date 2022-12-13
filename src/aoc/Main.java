@@ -52,7 +52,8 @@ public class Main {
             case 9 -> new Day9();
             case 10 -> new Day10();
             case 11 -> new Day11();
-            default -> null;
+            case 12 -> new Day12();
+            default -> throw new IllegalStateException();
         };
 
         for (int i = 1; i <= numOfSamples; i++) {
