@@ -62,6 +62,39 @@ import java.util.stream.Stream;
  *
  * What is the fewest steps required to move from your current position to the location that
  * should get the best signal?
+ *
+ * --- Part Two ---
+ *
+ * As you walk up the hill, you suspect that the Elves will want to turn this into a hiking trail.
+ * The beginning isn't very scenic, though; perhaps you can find a better starting point.
+ *
+ * To maximize exercise while hiking, the trail should start as low as possible: elevation a.
+ * The goal is still the square marked E. However, the trail should still be direct,
+ * taking the fewest steps to reach its goal. So, you'll need to find the shortest path from
+ * any square at elevation a to the square marked E.
+ *
+ * Again consider the example from above:
+ *
+ * Sabqponm
+ * abcryxxl
+ * accszExk
+ * acctuvwj
+ * abdefghi
+ *
+ * Now, there are six choices for starting position (five marked a, plus the square marked S
+ * that counts as being at elevation a). If you start at the bottom-left square, you can reach
+ * the goal most quickly:
+ *
+ * ...v<<<<
+ * ...vv<<^
+ * ...v>E^^
+ * .>v>>>^^
+ * >^>>>>>^
+ *
+ * This path reaches the goal in only 29 steps, the fewest possible.
+ *
+ * What is the fewest steps required to move starting from any square with elevation a to the
+ * location that should get the best signal?
  */
 public class Day12 implements Solution {
 
@@ -141,13 +174,11 @@ public class Day12 implements Solution {
         System.out.println(path.cord + " " + path.cost + " -> " + map[path.cord.r][path.cord.c]);
     }
 
-    private static int part1Impl(String s) {
-        char[][] map = toMap(s);
-        Coord start = findStart(map);
-        Set<Coord> visited = new HashSet<>();
-        visited.add(start);
-        Deque<Path> queue = new ArrayDeque<>();
-        queue.addLast(new Path(start, 0, null));
+    private static int solve (
+        char[][] map,
+        Deque<Path> queue,
+        Set<Coord> visited
+    ) {
         int R = map.length;
         int C = map[0].length;
 
@@ -166,7 +197,7 @@ public class Day12 implements Solution {
                 .filter(potentialCoord -> potentialCoord.r < R)
                 .filter(potentialCoord -> potentialCoord.c < C)
                 .filter(potentialCoord -> !visited.contains(potentialCoord))
-                .filter(potentialCoord -> Math.abs(toHeight(map[potentialCoord.r][potentialCoord.c]) - currentHeight) <= 1 )
+                .filter(potentialCoord -> currentHeight - toHeight(map[potentialCoord.r][potentialCoord.c]) >= -1 )
                 .map(goodCoord -> new Path(goodCoord, newCost, path))
                 .collect(Collectors.toList());
 
@@ -184,9 +215,36 @@ public class Day12 implements Solution {
         throw new IllegalStateException("not found");
     }
 
+    private static int part1Impl(String s) {
+        char[][] map = toMap(s);
+        Coord start = findStart(map);
+        Set<Coord> visited = new HashSet<>();
+        visited.add(start);
+        Deque<Path> queue = new ArrayDeque<>();
+        queue.addLast(new Path(start, 0, null));
+
+        return solve(map, queue, visited);
+    }
+
 
     private static long part2Impl(String s) {
-        return 0;
+
+        char[][] map = toMap(s);
+        int R = map.length;
+        int C = map[0].length;
+        Set<Coord> visited = new HashSet<>();
+        Deque<Path> queue = new ArrayDeque<>();
+        for(int r = 0; r < R; r++) {
+            for (int c = 0; c < C; c++) {
+                if (map[r][c] == 'a' || map[r][c] == 'S') {
+                    Coord start = new Coord(r,c);
+                    visited.add(start);
+                    queue.addLast(new Path(start, 0, null));
+                }
+            }
+        }
+
+        return solve(map, queue, visited);
     }
 
 

@@ -53,6 +53,7 @@ public class Main {
             case 10 -> new Day10();
             case 11 -> new Day11();
             case 12 -> new Day12();
+            case 13 -> new Day13();
             default -> throw new IllegalStateException();
         };
 
