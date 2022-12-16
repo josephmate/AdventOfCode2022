@@ -55,6 +55,7 @@ public class Main {
             case 12 -> new Day12();
             case 13 -> new Day13();
             case 14 -> new Day14();
+            // run day15 from Day15's main
             default -> throw new IllegalStateException();
         };
 
