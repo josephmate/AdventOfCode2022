@@ -3,6 +3,8 @@ package aoc;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -700,6 +702,30 @@ public class Day17 {
         }
     }
 
+    private static void printState(Map<Coord, Integer> rocks) {
+        int minX = Math.min(-1, rocks.keySet().stream().mapToInt(Coord::x).min().orElseThrow());
+        int maxX = Math.max(7, rocks.keySet().stream().mapToInt(Coord::x).max().orElseThrow());
+        int minY = Math.min(-1, rocks.keySet().stream().mapToInt(Coord::y).min().orElseThrow());
+        int maxY = rocks.keySet().stream().mapToInt(Coord::y).max().orElseThrow();
+
+        for (int y = maxY; y >= minY; y--) {
+            for (int x = minX; x <= maxX; x++) {
+                Coord coord = new Coord(x,y);
+                if (rocks.containsKey(coord)) {
+                    System.out.print(rocks.get(coord)); // ROCK
+                } else if (y == -1) {
+                    System.out.print('-'); // FLOOR
+                } else if (x == -1) {
+                    System.out.print('|'); // WALL
+                } else if (x == 7) {
+                    System.out.print('|'); // WALL
+                } else {
+                    System.out.print('.'); // NOTHING
+                }
+            }
+            System.out.println();
+        }
+    }
 
     private static long part1(String input) {
         final String jets = input.trim();
@@ -788,12 +814,52 @@ public class Day17 {
         return highestRock + 1;
     }
 
+    private static void countRockLines(Map<Coord, Integer> rocks) {
+        int minX = Math.min(-1, rocks.keySet().stream().mapToInt(Coord::x).min().orElseThrow());
+        int maxX = Math.max(7, rocks.keySet().stream().mapToInt(Coord::x).max().orElseThrow());
+        int minY = Math.min(-1, rocks.keySet().stream().mapToInt(Coord::y).min().orElseThrow());
+        int maxY = rocks.keySet().stream().mapToInt(Coord::y).max().orElseThrow();
 
+        Map<String, Long> counts = new HashMap<>();
 
-    private static long part2(String input) {
+        for (int y = maxY; y >= minY; y--) {
+            StringBuilder sb = new StringBuilder();
+            for (int x = minX; x <= maxX; x++) {
+                Coord coord = new Coord(x,y);
+                if (rocks.containsKey(coord)) {
+                    sb.append(rocks.get(coord)); // ROCK
+                } else if (y == -1) {
+                    sb.append('-'); // FLOOR
+                } else if (x == -1) {
+                    sb.append('|'); // WALL
+                } else if (x == 7) {
+                    sb.append('|'); // WALL
+                } else {
+                    sb.append('.'); // NOTHING
+                }
+            }
+            String line = sb.toString();
+            Long count = counts.get(line);
+            if (count == null) {
+                count = 0L;
+            }
+            counts.put(line, count+1);
+        }
+
+        List<Map.Entry<String, Long>> toSort = new ArrayList<>(counts.entrySet());
+        Collections.sort(toSort,
+            Comparator.comparingLong((Map.Entry<String, Long> a) -> a.getValue())
+                       .thenComparing(Map.Entry::getKey));
+        for (var entry : toSort) {
+            System.out.println(entry.getKey() + " => " + entry.getValue());
+        }
+    }
+
+    private static long part2(String input, long limit) {
         final String jets = input.trim();
 
         Set<Coord> rocks = new HashSet<>();
+        Map<Coord, Integer> rockMap = new HashMap<>();
         // TODO: option 1 find two adjacent lines with with a rock in at least 1 x
         //       then remove all rocks below it
 
@@ -820,16 +886,9 @@ public class Day17 {
         );
 
         long jet = 0;
-        for (long rock = 0; rock < 1000000000000L; rock++) {
+        for (long rock = 0; rock < limit; rock++) {
             // and a new rock immediately begins falling.
-            Collidable currentRock = rockMakers.get( (int)(rock% rockMakers.size()) ).start(highestRock, LEFT_WALL, RIGHT_WALL);
-
-            if (DEBUG) {
-                if (rock >= 1 && rock <= 11) {
-                    System.out.println("========= "+rock+" =========");
-                    printState(rocks);
-                }
-            }
+            Collidable currentRock = rockMakers.get((int) (rock % rockMakers.size())).start(highestRock, LEFT_WALL, RIGHT_WALL);
 
             while (true) {
                 /* After a rock appears, it alternates between being pushed by a jet of hot gas one unit
@@ -840,7 +899,7 @@ public class Day17 {
                  * above means that the jets will push a falling rock right, then right, then right, then left,
                  * then left, then right, and so on. If the end of the list is reached, it repeats.
                  */
-                char jetDirection = jets.charAt( (int)(jet % jets.length()) );
+                char jetDirection = jets.charAt((int) (jet % jets.length()));
                 final Collidable pushedRock;
                 switch (jetDirection) {
                     case '<' -> {
@@ -870,6 +929,9 @@ public class Day17 {
                     highestRock = Math.max(highestRock,
                         currentRock.points().stream().mapToInt(Coord::y).max().orElseThrow());
                     rocks.addAll(currentRock.points());
+                    for (Coord rockPoint : currentRock.points()) {
+                        rockMap.put(rockPoint, (int) (rock % rockMakers.size()) );
+                    }
                     break;
                 }
                 currentRock = fallenRock;
@@ -877,8 +939,11 @@ public class Day17 {
         }
 
         if (DEBUG) {
-            System.out.println("========= 2022 =========");
-            printState(rocks);
+
+            System.out.println("==========================");
+            printState(rockMap);
+            System.out.println("==========================");
+            countRockLines(rockMap);
         }
 
         return highestRock + 1;
@@ -898,10 +963,40 @@ public class Day17 {
         System.out.println("Solution: "
             + part1(realInput));
 
-        System.out.println("Expected: "
-            + Files.readString(java.nio.file.Path.of("input/day_17_sample_part2_expected.txt")));
-        System.out.println("Actual:   " +  part2(sampleInput));
-        System.out.println("Solution: " +  part2(realInput));
+        DEBUG = true;
+        part2(sampleInput, 2022);
+        part2(realInput, 100000);
+        DEBUG = false;
 
+//        System.out.println("Expected: "
+//            + Files.readString(java.nio.file.Path.of("input/day_17_sample_part2_expected.txt")));
+//        System.out.println("Actual:   " +  part2(sampleInput));
+//        System.out.println("Solution: " +  part2(realInput));
+
+        /* part 1
+        |....1..| will detect the loop
+
+        notice it cleanly separates between the rocks:
+        |..222..|
+        |....1..|   <--------
+        |...111.|   <--------
+        |3...1..|   <--------
+        |30000..|
+
+         */
+
+        /* part 2
+        |.....44| will detect the loop
+
+        notice it cleanly separates between the rocks:
+        |...31..|
+        |...111.|
+        |....1..|
+        |...0000|
+        |.....44|   <--------
+        |.3...44|   <--------
+        |.3...2.|
+
+         */
     }
 }
