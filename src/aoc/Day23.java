@@ -1,0 +1,575 @@
+package aoc;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/**
+ * --- Day 23: Unstable Diffusion ---
+ *
+ * You enter a large crater of gray dirt where the grove is supposed to be. All around you, plants
+ * you imagine were expected to be full of fruit are instead withered and broken. A large group of
+ * Elves has formed in the middle of the grove.
+ *
+ * "...but this volcano has been dormant for months. Without ash, the fruit can't grow!"
+ *
+ * You look up to see a massive, snow-capped mountain towering above you.
+ *
+ * "It's not like there are other active volcanoes here; we've looked everywhere."
+ *
+ * "But our scanners show active magma flows; clearly it's going somewhere."
+ *
+ * They finally notice you at the edge of the grove, your pack almost overflowing from the random
+ * star fruit you've been collecting. Behind you, elephants and monkeys explore the grove,
+ * looking concerned. Then, the Elves recognize the ash cloud slowly spreading above your recent detour.
+ *
+ * "Why do you--" "How is--" "Did you just--"
+ *
+ * Before any of them can form a complete question, another Elf speaks up: "Okay, new plan.
+ * We have almost enough fruit already, and ash from the plume should spread here eventually.
+ * If we quickly plant new seedlings now, we can still make it to the extraction point. Spread out!"
+ *
+ * The Elves each reach into their pack and pull out a tiny plant. The plants rely on important
+ * nutrients from the ash, so they can't be planted too close together.
+ *
+ * There isn't enough time to let the Elves figure out where to plant the seedlings themselves;
+ * you quickly scan the grove (your puzzle input) and note their positions.
+ *
+ * For example:
+ *
+ * ....#..
+ * ..###.#
+ * #...#.#
+ * .#...##
+ * #.###..
+ * ##.#.##
+ * .#..#..
+ *
+ * The scan shows Elves # and empty ground .; outside your scan, more empty ground extends a
+ * long way in every direction.
+ * The scan is oriented so that north is up;
+ * orthogonal directions are written N (north), S (south), W (west), and E (east),
+ * while diagonal directions are written NE, NW, SE, SW.
+ *
+ * The Elves follow a time-consuming process to figure out where they should each go;
+ * you can speed up this process considerably.
+ * The process consists of some number of rounds during which Elves alternate between considering
+ * where to move and actually moving.
+ *
+ * During the first half of each round, each Elf considers the eight positions adjacent to themself.
+ * If no other Elves are in one of those eight positions,
+ * the Elf does not do anything during this round. Otherwise,
+ * the Elf looks in each of four directions in the following order and proposes moving one step in the first valid direction:
+ *
+ *     If there is no Elf in the N, NE, or NW adjacent positions, the Elf proposes moving north one step.
+ *     If there is no Elf in the S, SE, or SW adjacent positions, the Elf proposes moving south one step.
+ *     If there is no Elf in the W, NW, or SW adjacent positions, the Elf proposes moving west one step.
+ *     If there is no Elf in the E, NE, or SE adjacent positions, the Elf proposes moving east one step.
+ *
+ * After each Elf has had a chance to propose a move, the second half of the round can begin.
+ * Simultaneously, each Elf moves to their proposed destination tile if they were the only Elf to
+ * propose moving to that position. If two or more Elves propose moving to the same position,
+ * none of those Elves move.
+ *
+ * Finally, at the end of the round, the first direction the Elves considered is moved to the end
+ * of the list of directions. For example, during the second round, the Elves would try proposing
+ * a move to the south first, then west, then east, then north. On the third round, the Elves would
+ * first consider west, then east, then north, then south.
+ *
+ * As a smaller example, consider just these five Elves:
+ *
+ * .....
+ * ..##.
+ * ..#..
+ * .....
+ * ..##.
+ * .....
+ *
+ * The northernmost two Elves and southernmost two Elves all propose moving north, while the middle Elf cannot move north and proposes moving south. The middle Elf proposes the same destination as the southwest Elf, so neither of them move, but the other three do:
+ *
+ * ..##.
+ * .....
+ * ..#..
+ * ...#.
+ * ..#..
+ * .....
+ *
+ * Next, the northernmost two Elves and the southernmost Elf all propose moving south. Of the remaining middle two Elves, the west one cannot move south and proposes moving west, while the east one cannot move south or west and proposes moving east. All five Elves succeed in moving to their proposed positions:
+ *
+ * .....
+ * ..##.
+ * .#...
+ * ....#
+ * .....
+ * ..#..
+ *
+ * Finally, the southernmost two Elves choose not to move at all. Of the remaining three Elves, the west one proposes moving west, the east one proposes moving east, and the middle one proposes moving north; all three succeed in moving:
+ *
+ * ..#..
+ * ....#
+ * #....
+ * ....#
+ * .....
+ * ..#..
+ *
+ * At this point, no Elves need to move, and so the process ends.
+ *
+ * The larger example above proceeds as follows:
+ *
+ * == Initial State ==
+ * ..............
+ * ..............
+ * .......#......
+ * .....###.#....
+ * ...#...#.#....
+ * ....#...##....
+ * ...#.###......
+ * ...##.#.##....
+ * ....#..#......
+ * ..............
+ * ..............
+ * ..............
+ *
+ * == End of Round 1 ==
+ * ..............
+ * .......#......
+ * .....#...#....
+ * ...#..#.#.....
+ * .......#..#...
+ * ....#.#.##....
+ * ..#..#.#......
+ * ..#.#.#.##....
+ * ..............
+ * ....#..#......
+ * ..............
+ * ..............
+ *
+ * == End of Round 2 ==
+ * ..............
+ * .......#......
+ * ....#.....#...
+ * ...#..#.#.....
+ * .......#...#..
+ * ...#..#.#.....
+ * .#...#.#.#....
+ * ..............
+ * ..#.#.#.##....
+ * ....#..#......
+ * ..............
+ * ..............
+ *
+ * == End of Round 3 ==
+ * ..............
+ * .......#......
+ * .....#....#...
+ * ..#..#...#....
+ * .......#...#..
+ * ...#..#.#.....
+ * .#..#.....#...
+ * .......##.....
+ * ..##.#....#...
+ * ...#..........
+ * .......#......
+ * ..............
+ *
+ * == End of Round 4 ==
+ * ..............
+ * .......#......
+ * ......#....#..
+ * ..#...##......
+ * ...#.....#.#..
+ * .........#....
+ * .#...###..#...
+ * ..#......#....
+ * ....##....#...
+ * ....#.........
+ * .......#......
+ * ..............
+ *
+ * == End of Round 5 ==
+ * .......#......
+ * ..............
+ * ..#..#.....#..
+ * .........#....
+ * ......##...#..
+ * .#.#.####.....
+ * ...........#..
+ * ....##..#.....
+ * ..#...........
+ * ..........#...
+ * ....#..#......
+ * ..............
+ *
+ * After a few more rounds...
+ *
+ * == End of Round 10 ==
+ * .......#......
+ * ...........#..
+ * ..#.#..#......
+ * ......#.......
+ * ...#.....#..#.
+ * .#......##....
+ * .....##.......
+ * ..#........#..
+ * ....#.#..#....
+ * ..............
+ * ....#..#..#...
+ * ..............
+ *
+ * To make sure they're on the right track, the Elves like to check after round 10 that they're making good progress toward covering enough ground. To do this, count the number of empty ground tiles contained by the smallest rectangle that contains every Elf. (The edges of the rectangle should be aligned to the N/S/E/W directions; the Elves do not have the patience to calculate arbitrary rectangles.) In the above example, that rectangle is:
+ *
+ * ......#.....
+ * ..........#.
+ * .#.#..#.....
+ * .....#......
+ * ..#.....#..#
+ * #......##...
+ * ....##......
+ * .#........#.
+ * ...#.#..#...
+ * ............
+ * ...#..#..#..
+ *
+ * In this region, the number of empty ground tiles is 110.
+ *
+ * Simulate the Elves' process and find the smallest rectangle that contains the
+ * Elves after 10 rounds. How many empty ground tiles does that rectangle contain?
+ *
+ * --- Part Two ---
+ *
+ * It seems you're on the right track. Finish simulating the process and figure out where the
+ * Elves need to go. How many rounds did you save them?
+ *
+ * In the example above, the first round where no Elf moved was round 20:
+ *
+ * .......#......
+ * ....#......#..
+ * ..#.....#.....
+ * ......#.......
+ * ...#....#.#..#
+ * #.............
+ * ....#.....#...
+ * ..#.....#.....
+ * ....#.#....#..
+ * .........#....
+ * ....#......#..
+ * .......#......
+ *
+ * Figure out where the Elves need to go. What is the number of the first round where no Elf moves?
+ */
+public class Day23 {
+
+    private static boolean DEBUG = false;
+
+    record Coord (int r, int c) {
+
+    }
+
+    private static Map<Coord, Character> parseInput(String input) {
+        Map<Coord, Character> map = new HashMap<>();
+
+        int r = 0;
+        Iterator<String> lines = input.lines().iterator();
+        while (lines.hasNext()) {
+            String line = lines.next();
+
+            for (int c = 0; c < line.length(); c++) {
+                char ch = line.charAt(c);
+                switch (ch) {
+                    case '.' -> {}
+                    case '#' -> map.put(new Coord(r,c), ch);
+                    default -> throw new IllegalStateException("Unrecognized character"
+                        + " r=" + r
+                        + " c=" + c
+                        + " ch=" + ch);
+                }
+            }
+
+            r++;
+        }
+
+        return map;
+    }
+
+    private static boolean anyAdjacent(Coord coord, Map<Coord, Character> map) {
+        for (int rDelta = -1; rDelta <= 1; rDelta++) {
+            for (int cDelta = -1; cDelta <= 1; cDelta++) {
+                if (rDelta != 0 || cDelta != 0) {
+                    if (map.containsKey(new Coord(coord.r + rDelta, coord.c + cDelta))) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /*
+     *     If there is no Elf in the N, NE, or NW adjacent positions, the Elf proposes moving north one step.
+     *     If there is no Elf in the S, SE, or SW adjacent positions, the Elf proposes moving south one step.
+     *     If there is no Elf in the W, NW, or SW adjacent positions, the Elf proposes moving west one step.
+     *     If there is no Elf in the E, NE, or SE adjacent positions, the Elf proposes moving east one step.
+     */
+    private static boolean isDirectionOpen(Coord coord, char direction, Map<Coord, Character> map) {
+        return switch(direction) {
+            case 'N' -> !map.containsKey(new Coord(coord.r - 1, coord.c)) // N
+                        && !map.containsKey(new Coord(coord.r - 1, coord.c + 1))  // NE
+                        && !map.containsKey(new Coord(coord.r - 1, coord.c - 1)); // NW
+            case 'S' -> !map.containsKey(new Coord(coord.r + 1, coord.c)) // S
+                        && !map.containsKey(new Coord(coord.r + 1, coord.c + 1))  // SE
+                        && !map.containsKey(new Coord(coord.r + 1, coord.c - 1)); // SW
+            case 'W' -> !map.containsKey(new Coord(coord.r, coord.c - 1)) // W
+                        && !map.containsKey(new Coord(coord.r - 1, coord.c - 1)) //NW
+                        && !map.containsKey(new Coord(coord.r + 1, coord.c - 1)); //SW
+            case 'E' -> !map.containsKey(new Coord(coord.r, coord.c + 1)) // E
+                && !map.containsKey(new Coord(coord.r - 1, coord.c + 1)) //NE
+                && !map.containsKey(new Coord(coord.r + 1, coord.c + 1)); //SE
+            default -> throw new IllegalStateException();
+        };
+    }
+    private static Coord moveOneStep(Coord coord, char direction) {
+        return switch(direction) {
+            case 'N' -> new Coord(coord.r -1, coord.c);
+            case 'S' -> new Coord(coord.r + 1, coord.c);
+            case 'W' -> new Coord(coord.r, coord.c - 1);
+            case 'E' -> new Coord(coord.r, coord.c + 1);
+            default -> throw new IllegalStateException();
+        };
+    }
+
+    static void printMap(Map<Coord, Character> map) {
+        if(!DEBUG) {
+            return;
+        }
+        int minR = map.keySet().stream().mapToInt(Coord::r).min().orElseThrow();
+        int maxR = map.keySet().stream().mapToInt(Coord::r).max().orElseThrow();
+        int minC = map.keySet().stream().mapToInt(Coord::c).min().orElseThrow();
+        int maxC = map.keySet().stream().mapToInt(Coord::c).max().orElseThrow();
+
+        for (int r = minR; r <= maxR; r++) {
+            for (int c = minC; c <= maxC; c++) {
+                Character ch = map.get(new Coord(r,c));
+                if (ch == null) {
+                    System.out.print('.');
+                } else {
+                    System.out.print(ch);
+                }
+            }
+            System.out.println();
+        }
+    }
+
+    /**
+     * This problem feels really similar to game of life.
+     *
+     * During the first half of each round, each Elf considers the eight positions adjacent to themself.
+     * If no other Elves are in one of those eight positions,
+     * the Elf does not do anything during this round. Otherwise,
+     * the Elf looks in each of four directions in the following order and proposes moving one step in the first valid direction:
+     *
+     *     If there is no Elf in the N, NE, or NW adjacent positions, the Elf proposes moving north one step.
+     *     If there is no Elf in the S, SE, or SW adjacent positions, the Elf proposes moving south one step.
+     *     If there is no Elf in the W, NW, or SW adjacent positions, the Elf proposes moving west one step.
+     *     If there is no Elf in the E, NE, or SE adjacent positions, the Elf proposes moving east one step.
+     *
+     * After each Elf has had a chance to propose a move, the second half of the round can begin.
+     * Simultaneously, each Elf moves to their proposed destination tile if they were the only Elf to
+     * propose moving to that position. If two or more Elves propose moving to the same position,
+     * none of those Elves move.
+     *
+     * Finally, at the end of the round, the first direction the Elves considered is moved to the end
+     * of the list of directions. For example, during the second round, the Elves would try proposing
+     * a move to the south first, then west, then east, then north. On the third round, the Elves would
+     * first consider west, then east, then north, then south.
+     */
+    private static long part1(String input) {
+        Map<Coord, Character> map = parseInput(input);
+        printMap(map);
+        /*
+         * Finally, at the end of the round, the first direction the Elves considered is moved to the end
+         * of the list of directions. For example, during the second round, the Elves would try proposing
+         * a move to the south first, then west, then east, then north. On the third round, the Elves would
+         * first consider west, then east, then north, then south.
+         */
+        char[] directions = new char[]{'N', 'S', 'W', 'E'};
+
+
+        for (int i = 0; i < 10; i++) {
+            // make the plan
+            Map<Coord, Character> plan = new HashMap<>();
+            for (Coord elf : map.keySet()) {
+                // If no other Elves are in one of those eight positions, the Elf does not do anything during this round.
+                if (anyAdjacent(elf, map)) {
+                    for (int j = 0; j < directions.length; j++) {
+                        /*
+                         * Finally, at the end of the round, the first direction the Elves considered is moved to the end
+                         * of the list of directions. For example, during the second round, the Elves would try proposing
+                         * a move to the south first, then west, then east, then north. On the third round, the Elves would
+                         * first consider west, then east, then north, then south.
+                         */
+                        char direction = directions[(i + j) % directions.length];
+                        if (isDirectionOpen(elf, direction, map)) {
+                            plan.put(elf, direction);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // check for collisions
+            //     destination    source
+            Map<   Coord,         List<Coord>> collisionChecker = new HashMap<>();
+            plan.forEach((source, direction) -> {
+                Coord destination = moveOneStep(source, direction);
+                List<Coord> colliders = collisionChecker.computeIfAbsent(destination, (coord) -> new ArrayList<>());
+                colliders.add(source);
+            });
+            collisionChecker.forEach((destination, colliders) ->{
+                if (colliders.size() > 1) {
+                    for (Coord collider : colliders) {
+                        plan.remove(collider);
+                    }
+                }
+            });
+
+            // execute the plan
+            // move the elves that can
+            Map<Coord, Character> nextMap = new HashMap<>();
+            // add the elves that don't move
+            map.keySet().stream()
+                .filter(elf -> !plan.containsKey(elf))
+                .forEach(elf -> nextMap.put(elf, '#'));
+            plan.forEach((source, direction) -> {
+                nextMap.put(moveOneStep(source, direction), '#');
+            });
+            map = nextMap;
+            if (DEBUG) {
+                System.out.println("======" + (i+1) + "=============");
+            }
+            printMap(map);
+        }
+
+        /*
+         * Simulate the Elves' process and find the smallest rectangle that contains the
+         * Elves after 10 rounds. How many empty ground tiles does that rectangle contain?
+         */
+        int minR = map.keySet().stream().mapToInt(Coord::r).min().orElseThrow();
+        int maxR = map.keySet().stream().mapToInt(Coord::r).max().orElseThrow();
+        int minC = map.keySet().stream().mapToInt(Coord::c).min().orElseThrow();
+        int maxC = map.keySet().stream().mapToInt(Coord::c).max().orElseThrow();
+
+        //     | ----------- size of rectangle ----|   number of elves
+        if (DEBUG) {
+            System.out.println(
+                "maxR=" + maxR
+                + " minR=" + minR
+                + " maxR=" + maxC
+                + " minR=" + minC
+                + " (maxR - minR + 1)=" + (maxR - minR + 1)
+                + " (maxC - minC + 1)=" + (maxC - minC + 1)
+                + " map.size()=" +  map.size()
+            );
+        }
+        return (maxR - minR + 1) * (maxC - minC + 1) - map.size();
+    }
+
+    private static long part2(String input) {
+        Map<Coord, Character> map = parseInput(input);
+        /*
+         * Finally, at the end of the round, the first direction the Elves considered is moved to the end
+         * of the list of directions. For example, during the second round, the Elves would try proposing
+         * a move to the south first, then west, then east, then north. On the third round, the Elves would
+         * first consider west, then east, then north, then south.
+         */
+        char[] directions = new char[]{'N', 'S', 'W', 'E'};
+
+        int round = 0;
+        while(true) {
+            round++;
+            // make the plan
+            Map<Coord, Character> plan = new HashMap<>();
+            for (Coord elf : map.keySet()) {
+                // If no other Elves are in one of those eight positions, the Elf does not do anything during this round.
+                if (anyAdjacent(elf, map)) {
+                    for (int j = 0; j < directions.length; j++) {
+                        /*
+                         * Finally, at the end of the round, the first direction the Elves considered is moved to the end
+                         * of the list of directions. For example, during the second round, the Elves would try proposing
+                         * a move to the south first, then west, then east, then north. On the third round, the Elves would
+                         * first consider west, then east, then north, then south.
+                         */
+                        char direction = directions[(round - 1 + j) % directions.length];
+                        if (isDirectionOpen(elf, direction, map)) {
+                            plan.put(elf, direction);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // check for collisions
+            //     destination    source
+            Map<   Coord,         List<Coord>> collisionChecker = new HashMap<>();
+            plan.forEach((source, direction) -> {
+                Coord destination = moveOneStep(source, direction);
+                List<Coord> colliders = collisionChecker.computeIfAbsent(destination, (coord) -> new ArrayList<>());
+                colliders.add(source);
+            });
+            collisionChecker.forEach((destination, colliders) ->{
+                if (colliders.size() > 1) {
+                    for (Coord collider : colliders) {
+                        plan.remove(collider);
+                    }
+                }
+            });
+
+            // execute the plan
+            // move the elves that can
+            Map<Coord, Character> nextMap = new HashMap<>();
+            // add the elves that don't move
+            map.keySet().stream()
+                .filter(elf -> !plan.containsKey(elf))
+                .forEach(elf -> nextMap.put(elf, '#'));
+            if (nextMap.size() == map.size()) {
+                // no one moved;
+                return round;
+            }
+
+            plan.forEach((source, direction) -> {
+                nextMap.put(moveOneStep(source, direction), '#');
+            });
+            map = nextMap;
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        int day = 23;
+        String sampleInput = Files.readString(java.nio.file.Path.of("input/day_"+day+"_sample.txt"));
+        String realInput = Files.readString(java.nio.file.Path.of("input/day_"+day+".txt"));
+
+        DEBUG = true;
+
+        part1(sampleInput);
+
+        DEBUG = false;
+        System.out.println("Expected: "
+            + Files.readString(java.nio.file.Path.of("input/day_"+day+"_sample_part1_expected.txt")));
+        System.out.println("Actual:   "
+            + part1(sampleInput));
+        System.out.println("Solution: "
+            + part1(realInput));
+
+        System.out.println("Expected: "
+            + Files.readString(java.nio.file.Path.of("input/day_"+day+"_sample_part2_expected.txt")));
+        System.out.println("Actual:   " +  part2(sampleInput));
+        System.out.println("Solution: " +  part2(realInput));
+
+    }
+}
