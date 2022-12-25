@@ -420,7 +420,18 @@ public class Day22 {
         return 1000*(currentCord.r+1) + 4 * (currentCord.c+1) + (direction%4);
     }
 
-    private static long part2(String input) {
+    record CubeMapping(int up, int down, int left, int right) {
+
+    }
+
+    private static long part2(String input, Map<Integer, CubeMapping> cubeMapping) {
+        Puzzle puzzle = parseInput(input);
+
+        // break the puzzle up into six cubes
+
+        //
+
+
         return 0;
     }
 
@@ -428,6 +439,14 @@ public class Day22 {
         int day = 22;
 
         DEBUG = true;
+        /* TODO: map the sample and input by hand for the simulator to use
+            X X 0
+            1 2 3
+            X X 4 5
+
+            0 down -> <- up  3
+            0 up
+         */
         String sampleInput = Files.readString(java.nio.file.Path.of("input/day_"+day+"_sample.txt"));
         String realInput = Files.readString(java.nio.file.Path.of("input/day_"+day+".txt"));
 
