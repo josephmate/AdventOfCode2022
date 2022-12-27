@@ -4,12 +4,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -180,6 +183,86 @@ import java.util.stream.Stream;
  * This approach lets you release the most pressure possible in 30 minutes with this valve layout, 1651.
  *
  * Work out the steps to release the most pressure in 30 minutes. What is the most pressure you can release?
+ *
+ * --- Part Two ---
+ *
+ * You're worried that even with an optimal approach, the pressure released won't be enough. What if you got one of the elephants to help you?
+ *
+ * It would take you 4 minutes to teach an elephant how to open the right valves in the right order, leaving you with only 26 minutes to actually execute your plan. Would having two of you working together be better, even if it means having less time? (Assume that you teach the elephant before opening any valves yourself, giving you both the same full 26 minutes.)
+ *
+ * In the example above, you could teach the elephant to help you as follows:
+ *
+ * == Minute 1 ==
+ * No valves are open.
+ * You move to valve II.
+ * The elephant moves to valve DD.
+ *
+ * == Minute 2 ==
+ * No valves are open.
+ * You move to valve JJ.
+ * The elephant opens valve DD.
+ *
+ * == Minute 3 ==
+ * Valve DD is open, releasing 20 pressure.
+ * You open valve JJ.
+ * The elephant moves to valve EE.
+ *
+ * == Minute 4 ==
+ * Valves DD and JJ are open, releasing 41 pressure.
+ * You move to valve II.
+ * The elephant moves to valve FF.
+ *
+ * == Minute 5 ==
+ * Valves DD and JJ are open, releasing 41 pressure.
+ * You move to valve AA.
+ * The elephant moves to valve GG.
+ *
+ * == Minute 6 ==
+ * Valves DD and JJ are open, releasing 41 pressure.
+ * You move to valve BB.
+ * The elephant moves to valve HH.
+ *
+ * == Minute 7 ==
+ * Valves DD and JJ are open, releasing 41 pressure.
+ * You open valve BB.
+ * The elephant opens valve HH.
+ *
+ * == Minute 8 ==
+ * Valves BB, DD, HH, and JJ are open, releasing 76 pressure.
+ * You move to valve CC.
+ * The elephant moves to valve GG.
+ *
+ * == Minute 9 ==
+ * Valves BB, DD, HH, and JJ are open, releasing 76 pressure.
+ * You open valve CC.
+ * The elephant moves to valve FF.
+ *
+ * == Minute 10 ==
+ * Valves BB, CC, DD, HH, and JJ are open, releasing 78 pressure.
+ * The elephant moves to valve EE.
+ *
+ * == Minute 11 ==
+ * Valves BB, CC, DD, HH, and JJ are open, releasing 78 pressure.
+ * The elephant opens valve EE.
+ *
+ * (At this point, all valves are open.)
+ *
+ * == Minute 12 ==
+ * Valves BB, CC, DD, EE, HH, and JJ are open, releasing 81 pressure.
+ *
+ * ...
+ *
+ * == Minute 20 ==
+ * Valves BB, CC, DD, EE, HH, and JJ are open, releasing 81 pressure.
+ *
+ * ...
+ *
+ * == Minute 26 ==
+ * Valves BB, CC, DD, EE, HH, and JJ are open, releasing 81 pressure.
+ *
+ * With the elephant helping, after 26 minutes, the best you could do would release a total of 1707 pressure.
+ *
+ * With you and an elephant working together for 26 minutes, what is the most pressure you could release?
  */
 public class Day16 {
 
@@ -230,6 +313,18 @@ public class Day16 {
         }
     }
 
+    record Visited(String id, int minute) {
+
+    }
+
+    record PathSoFar(
+        int streamReleased,
+        int minute,
+        String currentPosn,
+        Set<String> open
+    ) {
+
+    }
 
     /*
      * Valve AA has flow rate=0; tunnels lead to valves DD, II, BB
@@ -280,38 +375,229 @@ public class Day16 {
     private static long part1(String input) {
         Map<String, Valve> map = parse(input);
 
-        int minutesPassed = 0;
-        int presureSoFar = 0;
-        Valve winner =  map.remove("AA");
-        while (minutesPassed < 30 && !map.isEmpty()) {
+        // A* search
+        // reduce search space by keeping track of
+        //      valve -> minute -> biggestSoFar
+        // cost function
+        //      2^31 - totalSteamReleased
+        //      then minutes consumed
+        // generating moves
+        //      each non zero valve not used in this path yet
+
+        int maxSoFar = 0;
+        int MAX_MINUTES = 30;
+        Map<Visited, Integer> visited = new HashMap<>();
+        PriorityQueue<PathSoFar> priorityQueue = new PriorityQueue<>(
+            Comparator.comparingInt((PathSoFar a) -> Integer.MAX_VALUE - a.streamReleased)
+                .thenComparingInt(a -> a.minute)
+        );
+        visited.put(new Visited("AA", 0), 0);
+        priorityQueue.add(new PathSoFar(0, 0, "AA", new HashSet<>()));
+
+        while (!priorityQueue.isEmpty()) {
+            PathSoFar pathSoFar = priorityQueue.remove();
+            Valve valve = map.get(pathSoFar.currentPosn);
+
+
+            // try to open
+            if (
+                pathSoFar.minute <= MAX_MINUTES - 2 // need 1 minute to open, and at least 1 more to get some flow rate
+                && valve.rate > 0
+                && !pathSoFar.open.contains(pathSoFar.currentPosn)
+            ) {
+                int timeAfterOpen = pathSoFar.minute + 1;
+                int durationOpen = MAX_MINUTES - timeAfterOpen;
+                int steamReleased = durationOpen * valve.rate;
+                int totalSteamSoFar = pathSoFar.streamReleased + steamReleased;
+
+                Visited visitedInfo = new Visited(pathSoFar.currentPosn, timeAfterOpen);
+                int bestSoFar = visited.getOrDefault(visitedInfo, 0);
+                if (totalSteamSoFar >= bestSoFar) {
+                    maxSoFar = Math.max(maxSoFar, totalSteamSoFar);
+                    Set<String> newSet = new HashSet<>(pathSoFar.open);
+                    newSet.add(pathSoFar.currentPosn);
+                    visited.put(visitedInfo, totalSteamSoFar);
+                    priorityQueue.add(new PathSoFar(
+                        totalSteamSoFar,  //int streamReleased,
+                        timeAfterOpen, //int minute,
+                        pathSoFar.currentPosn, //String currentPosn,
+                        newSet //Set<String> open
+                    ));
+                }
+
+            }
+
+            // go somewhere and open a valve
+            if (pathSoFar.minute <= MAX_MINUTES - 3) { // need 1 minute to move, 1 to open, and at least 1 more to get some flow rate
+                int timeAfterTravel = pathSoFar.minute + 1;
+                for(String valveId : valve.tunnels) {
+                    Visited visitedInfo = new Visited(valveId, pathSoFar.minute);
+                    if (pathSoFar.streamReleased >= visited.getOrDefault(visitedInfo, 0)) {
+                        visited.put(visitedInfo, pathSoFar.streamReleased);
+                        priorityQueue.add(new PathSoFar(
+                            pathSoFar.streamReleased,  //int streamReleased,
+                            timeAfterTravel, //int minute,
+                            valveId, //String currentPosn,
+                            pathSoFar.open //Set<String> open
+                        ));
+                    }
+                }
+            }
 
         }
 
-        return presureSoFar;
+        return maxSoFar;
     }
 
-    private static void part2(String input, int maxValue) {
+    record DoublePathSoFar(
+        int streamReleased,
+        int minute,
+        String myPosn,
+        String elephantPosn,
+        Set<String> open
+    ) {
 
+    }
+
+    record DoubleVisited(
+        String myId,
+        String elephantId,
+        int minute
+    ){
+
+    }
+
+    private static void part2(String input) {
+        Map<String, Valve> map = parse(input);
+
+        // A* search
+        // reduce search space by keeping track of
+        //      valve -> minute -> biggestSoFar
+        // cost function
+        //      2^31 - totalSteamReleased
+        //      then minutes consumed
+        // generating moves
+        //      each non zero valve not used in this path yet
+
+        int maxSoFar = 0;
+        int MAX_MINUTES = 26;
+        Map<DoubleVisited, Integer> visited = new HashMap<>();
+        PriorityQueue<DoublePathSoFar> priorityQueue = new PriorityQueue<>(
+            Comparator.comparingInt((DoublePathSoFar a) -> Integer.MAX_VALUE - a.streamReleased)
+                .thenComparingInt(a -> a.minute)
+        );
+        visited.put(new DoubleVisited("AA", "AA", 0), 0);
+        priorityQueue.add(new DoublePathSoFar(0, 0, "AA", "AA", new HashSet<>()));
+
+        while (!priorityQueue.isEmpty()) {
+            DoublePathSoFar pathSoFar = priorityQueue.remove();
+            Valve myValve = map.get(pathSoFar.myPosn);
+            Valve elephantValve = map.get(pathSoFar.elephantPosn);
+
+
+            // try to open
+            if (
+                pathSoFar.minute <= MAX_MINUTES - 2 // need 1 minute to open, and at least 1 more to get some flow rate
+            ) {
+                if ( !pathSoFar.myPosn.equals(pathSoFar.elephantPosn)
+                    && myValve.rate > 0
+                    && elephantValve.rate > 0
+                    && !pathSoFar.open.contains(pathSoFar.myPosn)
+                    && !pathSoFar.open.contains(pathSoFar.elephantPosn)
+                ) {
+                    // both
+                } else if (
+
+                ) {
+                    // only me
+                } else if (
+                    // only elephant
+                ) {
+
+
+
+                int timeAfterOpen = pathSoFar.minute + 1;
+                int durationOpen = MAX_MINUTES - timeAfterOpen;
+                int steamReleased = durationOpen * valve.rate;
+                int totalSteamSoFar = pathSoFar.streamReleased + steamReleased;
+
+                Visited visitedInfo = new Visited(pathSoFar.currentPosn, timeAfterOpen);
+                int bestSoFar = visited.getOrDefault(visitedInfo, 0);
+                if (totalSteamSoFar >= bestSoFar) {
+                    maxSoFar = Math.max(maxSoFar, totalSteamSoFar);
+                    Set<String> newSet = new HashSet<>(pathSoFar.open);
+                    newSet.add(pathSoFar.currentPosn);
+                    visited.put(visitedInfo, totalSteamSoFar);
+                    priorityQueue.add(new PathSoFar(
+                        totalSteamSoFar,  //int streamReleased,
+                        timeAfterOpen, //int minute,
+                        pathSoFar.currentPosn, //String currentPosn,
+                        newSet //Set<String> open
+                    ));
+                }
+
+            }
+
+            // go somewhere and open a valve
+            if (pathSoFar.minute <= MAX_MINUTES - 3) { // need 1 minute to move, 1 to open, and at least 1 more to get some flow rate
+                int timeAfterTravel = pathSoFar.minute + 1;
+                for(String valveId : valve.tunnels) {
+                    Visited visitedInfo = new Visited(valveId, pathSoFar.minute);
+                    if (pathSoFar.streamReleased >= visited.getOrDefault(visitedInfo, 0)) {
+                        visited.put(visitedInfo, pathSoFar.streamReleased);
+                        priorityQueue.add(new PathSoFar(
+                            pathSoFar.streamReleased,  //int streamReleased,
+                            timeAfterTravel, //int minute,
+                            valveId, //String currentPosn,
+                            pathSoFar.open //Set<String> open
+                        ));
+                    }
+                }
+            }
+
+        }
+
+        return maxSoFar;
+    }
+
+    public static long factorial(long n) {
+        long result = 1;
+        for (int i = 1; i <= n; i++) {
+            result = result * i;
+        }
+        return result;
     }
 
     public static void main(String[] args) throws IOException {
 
+        String sampleInput = Files.readString(java.nio.file.Path.of("input/day_16_sample.txt"));
+        String realInput = Files.readString(java.nio.file.Path.of("input/day_16.txt"));
+
+        long sampleNonZero = parse(sampleInput).values().stream().filter(valve -> valve.rate > 0).count();
+        System.out.println("sampleNonZero=" + sampleNonZero + " factorial=" + factorial(sampleNonZero));
+        long realNonZero = parse(realInput).values().stream().filter(valve -> valve.rate > 0).count();
+        long realFactorial = factorial(realNonZero);
+        System.out.println("realNonZero=" + realNonZero + " factorial=" + realFactorial);
+        System.out.println("bit=" + (Math.log((double)realFactorial)/Math.log(2)));
+        // 40 bits is too much to brute force
+
         DEBUG = true;
-        part1(Files.readString(java.nio.file.Path.of("input/day_16_sample.txt")));
-//        DEBUG = false;
-//        System.out.println("Expected: "
-//            + Files.readString(java.nio.file.Path.of("input/day_15_sample_part1_expected.txt")));
-//        System.out.println("Actual:   "
-//            + part1(Files.readString(java.nio.file.Path.of("input/day_15_sample.txt")),10));
-//        System.out.println("Solution: "
-//            + part1(Files.readString(java.nio.file.Path.of("input/day_15.txt")),2000000));
-//
-//        System.out.println("Expected: "
-//            + Files.readString(java.nio.file.Path.of("input/day_15_sample_part2_expected.txt")));
-//        System.out.println("Actual:   ");
-//        part2(Files.readString(java.nio.file.Path.of("input/day_15_sample.txt")), 20);
-//        System.out.println("Solution: ");
-//        part2(Files.readString(java.nio.file.Path.of("input/day_15.txt")),4000000);
+        DEBUG = false;
+        System.out.println("Expected: "
+            + Files.readString(java.nio.file.Path.of("input/day_16_sample_part1_expected.txt")));
+        System.out.println("Actual:   "
+            + part1(sampleInput)); // wrong, but it somehow works for the real input
+        System.out.println("Solution: "
+            + part1(realInput)); // 1595
+
+        // despite my solution not finding the max for the sample, it was able to find the max for the real input!!!
+        // first time I've ever failed the sample but passed the real input :)
+
+
+        System.out.println("Expected: "
+            + Files.readString(java.nio.file.Path.of("input/day_16_sample_part2_expected.txt")));
+        System.out.println("Actual:   " + part2(sampleInput));
+        System.out.println("Solution:   " + part2(realInput));
 
     }
 }
