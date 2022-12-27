@@ -448,6 +448,12 @@ public class Day22 {
             0 up
          */
         String sampleInput = Files.readString(java.nio.file.Path.of("input/day_"+day+"_sample.txt"));
+        /*
+         * X 0 1
+         * X 2 X
+         * 3 4
+         * 5
+         */
         String realInput = Files.readString(java.nio.file.Path.of("input/day_"+day+".txt"));
 
         part1(sampleInput);
