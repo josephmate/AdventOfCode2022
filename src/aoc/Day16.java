@@ -431,7 +431,7 @@ public class Day16 {
             if (pathSoFar.minute <= MAX_MINUTES - 3) { // need 1 minute to move, 1 to open, and at least 1 more to get some flow rate
                 int timeAfterTravel = pathSoFar.minute + 1;
                 for(String valveId : valve.tunnels) {
-                    Visited visitedInfo = new Visited(valveId, pathSoFar.minute);
+                    Visited visitedInfo = new Visited(valveId, timeAfterTravel);
                     if (pathSoFar.streamReleased >= visited.getOrDefault(visitedInfo, 0)) {
                         visited.put(visitedInfo, pathSoFar.streamReleased);
                         priorityQueue.add(new PathSoFar(
@@ -454,7 +454,12 @@ public class Day16 {
         int minute,
         String myPosn,
         String elephantPosn,
-        Set<String> open
+        Set<String> open,
+        /**
+         * Make sure we do not return to a path we already visited, unless we have more steam.
+         */
+        Map<String, Integer> myPrunePath,
+        Map<String, Integer> elephantPrunePath
     ) {
 
     }
@@ -467,7 +472,7 @@ public class Day16 {
 
     }
 
-    private static void part2(String input) {
+    private static int part2(String input) {
         Map<String, Valve> map = parse(input);
 
         // A* search
@@ -487,7 +492,11 @@ public class Day16 {
                 .thenComparingInt(a -> a.minute)
         );
         visited.put(new DoubleVisited("AA", "AA", 0), 0);
-        priorityQueue.add(new DoublePathSoFar(0, 0, "AA", "AA", new HashSet<>()));
+        Map<String, Integer> initialMyPrunePath = new HashMap<>();
+        Map<String, Integer> initialElephantPrunePath = new HashMap<>();
+        initialMyPrunePath.put("AA", 0);
+        initialElephantPrunePath.put("AA", 0);
+        priorityQueue.add(new DoublePathSoFar(0, 0, "AA", "AA", new HashSet<>(), initialMyPrunePath, initialElephantPrunePath));
 
         while (!priorityQueue.isEmpty()) {
             DoublePathSoFar pathSoFar = priorityQueue.remove();
@@ -499,58 +508,158 @@ public class Day16 {
             if (
                 pathSoFar.minute <= MAX_MINUTES - 2 // need 1 minute to open, and at least 1 more to get some flow rate
             ) {
+                int timeAfterOpen = pathSoFar.minute + 1;
+                int durationOpen = MAX_MINUTES - timeAfterOpen;
+
                 if ( !pathSoFar.myPosn.equals(pathSoFar.elephantPosn)
                     && myValve.rate > 0
                     && elephantValve.rate > 0
                     && !pathSoFar.open.contains(pathSoFar.myPosn)
                     && !pathSoFar.open.contains(pathSoFar.elephantPosn)
                 ) {
-                    // both
-                } else if (
+                    // both open valves
+                    int steamReleased = durationOpen * (myValve.rate + elephantValve.rate);
+                    int totalSteamSoFar = pathSoFar.streamReleased + steamReleased;
 
-                ) {
-                    // only me
-                } else if (
-                    // only elephant
-                ) {
+                    DoubleVisited visitedInfo = new DoubleVisited(pathSoFar.myPosn, pathSoFar.elephantPosn, timeAfterOpen);
+                    int bestSoFar = visited.getOrDefault(visitedInfo, 0);
+                    if (
+                        totalSteamSoFar >= bestSoFar
+                        && totalSteamSoFar > pathSoFar.myPrunePath.getOrDefault(pathSoFar.myPosn, -1)
+                        && totalSteamSoFar > pathSoFar.elephantPrunePath.getOrDefault(pathSoFar.elephantPosn, -1)
+                    ) {
+                        maxSoFar = Math.max(maxSoFar, totalSteamSoFar);
+                        Set<String> newSet = new HashSet<>(pathSoFar.open);
+                        newSet.add(pathSoFar.myPosn);
+                        newSet.add(pathSoFar.elephantPosn);
+                        visited.put(visitedInfo, totalSteamSoFar);
 
+                        Map<String, Integer> newMyPrunePath = new HashMap<>(pathSoFar.myPrunePath);
+                        newMyPrunePath.put(pathSoFar.myPosn, totalSteamSoFar);
+                        Map<String, Integer> newElephantPrunePath = new HashMap<>(pathSoFar.elephantPrunePath);
+                        newElephantPrunePath.put(pathSoFar.elephantPosn, totalSteamSoFar);
 
+                        priorityQueue.add(new DoublePathSoFar(
+                            totalSteamSoFar,  //int streamReleased,
+                            timeAfterOpen, //int minute,
+                            pathSoFar.myPosn, //String myPosn,
+                            pathSoFar.elephantPosn, //String elephantPosn,
+                            newSet, //Set<String> open
+                            newMyPrunePath,
+                            newElephantPrunePath
+                        ));
+                    }
 
-                int timeAfterOpen = pathSoFar.minute + 1;
-                int durationOpen = MAX_MINUTES - timeAfterOpen;
-                int steamReleased = durationOpen * valve.rate;
-                int totalSteamSoFar = pathSoFar.streamReleased + steamReleased;
-
-                Visited visitedInfo = new Visited(pathSoFar.currentPosn, timeAfterOpen);
-                int bestSoFar = visited.getOrDefault(visitedInfo, 0);
-                if (totalSteamSoFar >= bestSoFar) {
-                    maxSoFar = Math.max(maxSoFar, totalSteamSoFar);
-                    Set<String> newSet = new HashSet<>(pathSoFar.open);
-                    newSet.add(pathSoFar.currentPosn);
-                    visited.put(visitedInfo, totalSteamSoFar);
-                    priorityQueue.add(new PathSoFar(
-                        totalSteamSoFar,  //int streamReleased,
-                        timeAfterOpen, //int minute,
-                        pathSoFar.currentPosn, //String currentPosn,
-                        newSet //Set<String> open
-                    ));
                 }
 
+                if (
+                    myValve.rate > 0
+                    && !pathSoFar.open.contains(pathSoFar.myPosn)
+                ) {
+                    // only I open, elephant moves
+                    int steamReleased = durationOpen * (myValve.rate);
+                    int totalSteamSoFar = pathSoFar.streamReleased + steamReleased;
+
+                    for (String elephantValveId : elephantValve.tunnels) {
+                        DoubleVisited visitedInfo = new DoubleVisited(pathSoFar.myPosn, elephantValveId, timeAfterOpen);
+                        int bestSoFar = visited.getOrDefault(visitedInfo, 0);
+                        if (
+                            totalSteamSoFar >= bestSoFar
+                            && totalSteamSoFar > pathSoFar.myPrunePath.getOrDefault(pathSoFar.myPosn, -1)
+                            && totalSteamSoFar > pathSoFar.elephantPrunePath.getOrDefault(elephantValveId, -1)
+                        ) {
+                            maxSoFar = Math.max(maxSoFar, totalSteamSoFar);
+                            Set<String> newSet = new HashSet<>(pathSoFar.open);
+                            newSet.add(pathSoFar.myPosn);
+                            visited.put(visitedInfo, totalSteamSoFar);
+
+                            Map<String, Integer> newMyPrunePath = new HashMap<>(pathSoFar.myPrunePath);
+                            newMyPrunePath.put(pathSoFar.myPosn, totalSteamSoFar);
+                            Map<String, Integer> newElephantPrunePath = new HashMap<>(pathSoFar.elephantPrunePath);
+                            newElephantPrunePath.put(elephantValveId, totalSteamSoFar);
+
+                            priorityQueue.add(new DoublePathSoFar(
+                                totalSteamSoFar,  //int streamReleased,
+                                timeAfterOpen, //int minute,
+                                pathSoFar.myPosn, //String myPosn,
+                                elephantValveId, //String elephantPosn
+                                newSet, //Set<String> open
+                                newMyPrunePath,
+                                newElephantPrunePath
+                            ));
+                        }
+                    }
+                }
+
+                if (
+                    !pathSoFar.myPosn.equals(pathSoFar.elephantPosn)
+                    && elephantValve.rate > 0
+                    && !pathSoFar.open.contains(pathSoFar.elephantPosn)
+                ) {
+                    // only elephant opens, I move
+                    int steamReleased = durationOpen * (elephantValve.rate);
+                    int totalSteamSoFar = pathSoFar.streamReleased + steamReleased;
+
+                    for(String myValveId : myValve.tunnels) {
+                        DoubleVisited visitedInfo = new DoubleVisited(myValveId, pathSoFar.elephantPosn, timeAfterOpen);
+                        int bestSoFar = visited.getOrDefault(visitedInfo, 0);
+                        if (
+                            totalSteamSoFar >= bestSoFar
+                            && totalSteamSoFar > pathSoFar.myPrunePath.getOrDefault(myValveId, -1)
+                            && totalSteamSoFar > pathSoFar.elephantPrunePath.getOrDefault(pathSoFar.elephantPosn, -1)
+                        ) {
+                            maxSoFar = Math.max(maxSoFar, totalSteamSoFar);
+                            Set<String> newSet = new HashSet<>(pathSoFar.open);
+                            newSet.add(pathSoFar.elephantPosn);
+                            visited.put(visitedInfo, totalSteamSoFar);
+
+                            Map<String, Integer> newMyPrunePath = new HashMap<>(pathSoFar.myPrunePath);
+                            newMyPrunePath.put(myValveId, totalSteamSoFar);
+                            Map<String, Integer> newElephantPrunePath = new HashMap<>(pathSoFar.elephantPrunePath);
+                            newElephantPrunePath.put(pathSoFar.elephantPosn, totalSteamSoFar);
+
+                            priorityQueue.add(new DoublePathSoFar(
+                                totalSteamSoFar,  //int streamReleased,
+                                timeAfterOpen, //int minute,
+                                myValveId, //String myPosn,
+                                pathSoFar.elephantPosn, //String elephantPosn,
+                                newSet, //Set<String> open
+                                newMyPrunePath,
+                                newElephantPrunePath
+                            ));
+                        }
+                    }
+                }
             }
 
             // go somewhere and open a valve
             if (pathSoFar.minute <= MAX_MINUTES - 3) { // need 1 minute to move, 1 to open, and at least 1 more to get some flow rate
                 int timeAfterTravel = pathSoFar.minute + 1;
-                for(String valveId : valve.tunnels) {
-                    Visited visitedInfo = new Visited(valveId, pathSoFar.minute);
-                    if (pathSoFar.streamReleased >= visited.getOrDefault(visitedInfo, 0)) {
-                        visited.put(visitedInfo, pathSoFar.streamReleased);
-                        priorityQueue.add(new PathSoFar(
-                            pathSoFar.streamReleased,  //int streamReleased,
-                            timeAfterTravel, //int minute,
-                            valveId, //String currentPosn,
-                            pathSoFar.open //Set<String> open
-                        ));
+                for(String myValveId : myValve.tunnels) {
+                    for(String elephantValveId : elephantValve.tunnels) {
+                        DoubleVisited visitedInfo = new DoubleVisited(myValveId, elephantValveId, timeAfterTravel);
+                        if (
+                            pathSoFar.streamReleased >= visited.getOrDefault(visitedInfo, 0)
+                            && pathSoFar.streamReleased > pathSoFar.myPrunePath.getOrDefault(myValveId, -1)
+                            && pathSoFar.streamReleased > pathSoFar.elephantPrunePath.getOrDefault(elephantValveId, -1)
+                        ) {
+                            visited.put(visitedInfo, pathSoFar.streamReleased);
+
+                            Map<String, Integer> newMyPrunePath = new HashMap<>(pathSoFar.myPrunePath);
+                            newMyPrunePath.put(myValveId, pathSoFar.streamReleased);
+                            Map<String, Integer> newElephantPrunePath = new HashMap<>(pathSoFar.elephantPrunePath);
+                            newElephantPrunePath.put(elephantValveId, pathSoFar.streamReleased);
+
+                            priorityQueue.add(new DoublePathSoFar(
+                                pathSoFar.streamReleased,  //int streamReleased,
+                                timeAfterTravel, //int minute,
+                                myValveId, //String currentPosn,
+                                elephantValveId,
+                                pathSoFar.open, //Set<String> open
+                                newMyPrunePath,
+                                newElephantPrunePath
+                            ));
+                        }
                     }
                 }
             }
