@@ -238,15 +238,112 @@ public class Day22 {
 
     }
 
-    private static long part2(String input, Map<Integer, CubeMapping> cubeMapping) {
+    record SquareMapping(
+        char[][] map,
+        int r,
+        int c
+    ) {
+
+    }
+
+    private static char[][] grabSquare(List<String> lines, int size, int startR, int startC) {
+        char[][] result = new char[size][size];
+        for (int r = startR; r < startR + size; r++) {
+            for (int c = startC; c < startC + size; c++) {
+                result[r-startR][c-startC] = lines.get(r).charAt(c);
+            }
+        }
+
+        return result;
+    }
+
+    private static SquareMapping[] breakIntoSquares(List<String> lines, int size) {
+        SquareMapping[] result = new SquareMapping[6];
+
+        // find the squares
+
+        int squareId = 0;
+        for (int r = 0; r < lines.size(); r+= size) {
+            for(int c = 0; c < lines.get(r).length(); c+= size) {
+                char ch = lines.get(r).charAt(c);
+                if (ch == '#' || ch == '.') {
+                    result[squareId] = new SquareMapping(grabSquare(lines, size, r, c), r, c);
+                    squareId++;
+                }
+            }
+        }
+
+
+        return result;
+    }
+
+    private static SquareMapping findSquare(SquareMapping[] squareMappings, int size, int r, int c) {
+        for (SquareMapping square : squareMappings) {
+            if (
+                r >= square.r
+                && r < square.r + size
+                && c >= square.c
+                && c < square.c + size
+            ) {
+                return square;
+            }
+        }
+        return null;
+    }
+
+    private static void printSquares(
+        int size,
+        List<String> lines,
+        SquareMapping[] squareMappings
+    ) {
+        for (int r = 0; r < lines.size(); r++) {
+            for (int c = 0; c < lines.get(r).length(); c++) {
+                SquareMapping square = findSquare(squareMappings, size, r, c);
+                if (square == null) {
+                    System.out.print(' ');
+                } else {
+                    System.out.print(square.map[r-square.r][c-square.c]);
+                }
+            }
+            System.out.println();
+        }
+    }
+
+    /*
+                 ===== Option 2: trying to keep everything 2D
+
+             1) do the movement until off the square
+             2) apply the rotate to figure out where we end up
+             3) rotate back to relative to initial
+             4) go back to 1 until movement is done
+     */
+    private static long part2(String input, CubeDescription cubeDescription) {
         Puzzle puzzle = parseInput(input);
 
-        // break the puzzle up into six cubes
+        // break the puzzle up into six squares
+        SquareMapping[] squares = breakIntoSquares(puzzle.map, cubeDescription.n);
+        if (DEBUG) {
+            printSquares(cubeDescription.n, puzzle.map, squares);
+        }
 
-        //
+        // apply the movements
 
 
         return 0;
+    }
+
+    record CubeConnection(
+        int cubeNum,
+        int numRotations
+    ) {
+
+    }
+
+    record CubeDescription(
+        int n,
+        List<List<CubeConnection>> cubeConnections
+    ) {
+
     }
 
     public static void main(String[] args) throws IOException {
@@ -281,17 +378,72 @@ public class Day22 {
 
 
              ===== Option 2: trying to keep everything 2D
+
+             1) do the movement until off the square
+             2) apply the rotate to figure out where we end up
+             3) rotate back to relative to initial
+             4) go back to 1 until movement is done
+
+
+            X X 0
+            1 2 3
+            X X 4 5
+            -----------------------------------------------
                 1
              2  0  5
                 3
-
-             0
                3 down to the top of 3, heading down
+                    no rotation/ no flip
                2 left to the top of 2, heading down
+                    rotate matrix clockwise
                1 up to the top of 1
+                    rotate matrix clockwise twice
                5 right to the left of 5
-                    5 is upside down
+                    rotate matrix clockwise twice
+            -----------------------------------------------
+                0
+             5  1  2
+                4
 
+                0 rotated twice
+                2 no rotation
+                4 rotated twice
+                5 rotated three times
+            -----------------------------------------------
+                0
+             1  2  3
+                4
+
+                0 is rotated 3 times
+                1 no rotation
+                3 no rotation
+                4 - 1 rotation
+            -----------------------------------------------
+                0
+             2  3  5
+                4
+
+                0 - 0 rotation
+                2 - 0 rotation
+                4 - 0 rotation
+                5 - 3 rotations
+            -----------------------------------------------
+                3
+             2  4  5
+                1
+
+                1 - 2 rotations
+                2 - 3 rotations
+                3 - 0 rotations
+                5 - 0 rotations
+            -----------------------------------------------
+                3
+             4  5  0
+                1
+                0 - 2 rotations
+                1 - 1 rotation
+                3 - 2 rotations
+                4 - 0 rotations
 
              ===== Option 3: tweak existing part1 to work
 
@@ -301,10 +453,6 @@ public class Day22 {
 
             0 -> 2 
             1 - 0
-
-
-
-
          */
         String sampleInput = Files.readString(java.nio.file.Path.of("input/day_"+day+"_sample.txt"));
         /*
@@ -315,7 +463,119 @@ public class Day22 {
          */
         String realInput = Files.readString(java.nio.file.Path.of("input/day_"+day+".txt"));
 
-        part1(sampleInput);
+        System.out.println("================== sample ===============");
+        part2(
+            sampleInput, new CubeDescription(4,
+                List.of(
+                    /*
+                1
+             2  0  5
+                3
+               3 down to the top of 3, heading down
+                    no rotation/ no flip
+               2 left to the top of 2, heading down
+                    rotate matrix clockwise
+               1 up to the top of 1
+                    rotate matrix clockwise twice
+               5 right to the left of 5
+                    rotate matrix clockwise twice
+                    */
+                    List.of(
+                        new CubeConnection(1, 2), // above
+                        new CubeConnection(5, 2), // right
+                        new CubeConnection(3, 0), // down
+                        new CubeConnection(2, 1)  // left
+                    ),
+            /*
+            -----------------------------------------------
+                0
+             5  1  2
+                4
+
+                0 rotated twice
+                2 no rotation
+                4 rotated twice
+                5 rotated three times
+                    */
+                    List.of(
+                        new CubeConnection(0, 2), // above
+                        new CubeConnection(2, 0), // right
+                        new CubeConnection(4, 2), // down
+                        new CubeConnection(5, 3)  // left
+                    ),
+            /*
+            -----------------------------------------------
+                0
+             1  2  3
+                4
+
+                0 is rotated 3 times
+                1 no rotation
+                3 no rotation
+                4 - 1 rotation
+                    */
+                    List.of(
+                        new CubeConnection(0, 3), // above
+                        new CubeConnection(3, 0), // right
+                        new CubeConnection(4, 1), // down
+                        new CubeConnection(1, 0)  // left
+                    ),
+            /*
+            -----------------------------------------------
+                0
+             2  3  5
+                4
+
+                0 - 0 rotation
+                2 - 0 rotation
+                4 - 0 rotation
+                5 - 3 rotations
+                    */
+                    List.of(
+                        new CubeConnection(0, 0), // above
+                        new CubeConnection(5, 3), // right
+                        new CubeConnection(4, 0), // down
+                        new CubeConnection(2, 0)  // left
+                    ),
+            /*
+            -----------------------------------------------
+                3
+             2  4  5
+                1
+
+                1 - 2 rotations
+                2 - 3 rotations
+                3 - 0 rotations
+                5 - 0 rotations
+                    */
+                    List.of(
+                        new CubeConnection(3,0), // above
+                        new CubeConnection(5,0), // right
+                        new CubeConnection(1,2), // down
+                        new CubeConnection(2,3)  // left
+                    ),
+            /*
+            -----------------------------------------------
+                3
+             4  5  0
+                1
+                0 - 2 rotations
+                1 - 1 rotation
+                3 - 2 rotations
+                4 - 0 rotations
+                    */
+                    List.of(
+                        new CubeConnection(3,2), // above
+                        new CubeConnection(0,2), // right
+                        new CubeConnection(1,1), // down
+                        new CubeConnection(4,0)  // left
+                    )
+                )
+            )
+        );
+
+        System.out.println("================== real ===============");
+        part2(realInput, new CubeDescription(50, null));
 
         DEBUG = false;
         System.out.println("Expected: "
