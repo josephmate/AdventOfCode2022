@@ -444,8 +444,53 @@ public class Day22 {
             1 2 3
             X X 4 5
 
-            0 down -> <- up  3
-            0 up
+                                   back face is 1
+                               +--------+                  +z
+                              /        /|                  ^
+                             /    4   / |                  |
+                            +--------+  |    5             |
+                            |        |  |                  |
+                      2     |        |  +                   --------------> +x
+                            |   3    | /                   /
+                            |        |/                   /
+                            +--------+                   /
+                                 Floor is 0             v
+                                                        +y
+
+             ===== Option 1: Project everything into a 3d cube
+                             then project back to 2d
+
+             0 x->x, y->y, no z
+             3 x->x, no y, y->z
+             2
+
+
+
+             ===== Option 2: trying to keep everything 2D
+                1
+             2  0  5
+                3
+
+             0
+               3 down to the top of 3, heading down
+               2 left to the top of 2, heading down
+               1 up to the top of 1
+               5 right to the left of 5
+                    5 is upside down
+
+
+             ===== Option 3: tweak existing part1 to work
+
+            X X 0
+            1 2 3
+            X X 4 5
+
+            0 -> 2 
+            1 - 0
+
+
+
+
          */
         String sampleInput = Files.readString(java.nio.file.Path.of("input/day_"+day+"_sample.txt"));
         /*
