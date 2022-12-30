@@ -277,6 +277,21 @@ public class Day22 {
         return result;
     }
 
+    private static int findSquareId(SquareMapping[] squareMappings, int size, int r, int c) {
+        for (int i = 0; i < squareMappings.length; i++) {
+            SquareMapping square = squareMappings[i];
+            if (
+                r >= square.r
+                    && r < square.r + size
+                    && c >= square.c
+                    && c < square.c + size
+            ) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     private static SquareMapping findSquare(SquareMapping[] squareMappings, int size, int r, int c) {
         for (SquareMapping square : squareMappings) {
             if (
@@ -296,6 +311,9 @@ public class Day22 {
         List<String> lines,
         SquareMapping[] squareMappings
     ) {
+        if (!DEBUG) {
+           return;
+        }
         for (int r = 0; r < lines.size(); r++) {
             for (int c = 0; c < lines.get(r).length(); c++) {
                 SquareMapping square = findSquare(squareMappings, size, r, c);
@@ -307,6 +325,76 @@ public class Day22 {
             }
             System.out.println();
         }
+    }
+
+    private static Coord rotateCounterclockwise(Coord originalCoord, int size, int numRotations) {
+        Coord current = originalCoord;
+        for (int i = 0; i < numRotations; i++) {
+            current = rotateCounterclockwise(current, size);
+        }
+        return current;
+    }
+
+    private static Coord rotateCounterclockwise(Coord originalCoord, int size) {
+        // 0,0  0,1  0,2  0,3
+        // 1,0  1,1  1,2  1,3
+        // 2,0  2,1  2,2  2,3
+        // 3,0  3,1  3,2  3,3
+        //
+        // 0,3  1,3  2,3  3,3
+        // 0,2  1,2  2,2, 3,2
+        // 0,1  1,1  2,1  3,1
+        // 0,0  1,0  2,0  3,0
+
+        return new Coord( (size-1) - originalCoord.c, originalCoord.r);
+    }
+
+    private static int figureOutDirection(
+        Coord rotated,
+        CubeDescription cubeDescription
+    ) {
+
+        final int nextDirection;
+        if (rotated.r == 0) {
+            nextDirection = 1;
+        } else if(rotated.r == cubeDescription.n-1) {
+            nextDirection = 3;
+        } else if (rotated.c == 0) {
+            nextDirection = 0;
+        } else if(rotated.c == cubeDescription.n-1) {
+            nextDirection = 2;
+        } else {
+            throw new IllegalStateException();
+        }
+
+        return nextDirection;
+    }
+
+    record Movement(Coord nextCoord,
+                    int nextDirection,
+                    SquareMapping nextSquare,
+                    int nextSquareId) {
+
+    }
+
+    private static Movement transferSquares(
+        CubeDescription cubeDescription,
+        int squareId,
+        int direction,
+        Coord unRotated,
+        SquareMapping[] squares
+    ) {
+        CubeConnection cubeConnection = cubeDescription.cubeConnections.get(squareId).get(direction);
+        Coord rotated  = rotateCounterclockwise(
+            unRotated, cubeDescription.n, cubeConnection.numRotations);
+        int newDirection = figureOutDirection(rotated, cubeDescription);
+        SquareMapping nextSquare = squares[cubeConnection.cubeNum];
+        return new Movement(
+            new Coord(rotated.r + nextSquare.r, rotated.c + nextSquare.c),
+            newDirection,
+            nextSquare,
+            cubeConnection.cubeNum
+        );
     }
 
     /*
@@ -322,16 +410,189 @@ public class Day22 {
 
         // break the puzzle up into six squares
         SquareMapping[] squares = breakIntoSquares(puzzle.map, cubeDescription.n);
-        if (DEBUG) {
-            printSquares(cubeDescription.n, puzzle.map, squares);
-        }
+        printSquares(cubeDescription.n, puzzle.map, squares);
 
         // apply the movements
 
 
-        return 0;
+        Map<Coord, Character> visited = new HashMap<>();
+
+        // Facing is 0 for right (>), 1 for down (v), 2 for left (<), and 3 for up (^).
+        int direction = 0;
+
+        int squareId = -1;
+        SquareMapping currentSquare = null;
+        Coord currentCord = null;
+        // find starting point
+        for (int i = 0; i < puzzle.map.get(0).length(); i++) {
+            char ch = puzzle.map.get(0).charAt(i);
+            if (ch == '.') {
+                currentCord = new Coord(0, i);
+                squareId = findSquareId(squares, cubeDescription.n, 0, i);
+                currentSquare = squares[squareId];
+                break;
+            }
+        }
+        if (squareId == -1) {
+            throw new IllegalStateException();
+        }
+        if (DEBUG) {
+            visited.put(currentCord, 'S');
+        }
+
+        printMap(null, puzzle.map, visited);
+
+        for(Step step : puzzle.steps) {
+            switch (step) {
+                case Forward(int numSteps) -> {
+                    for (int i = 0; i < numSteps; i++) {
+                        Movement nextMove = switch (direction) {
+                            case 0 -> {  // '>'
+                                if (currentCord.c - currentSquare.c + 1 < cubeDescription.n ) {
+                                    yield new Movement(
+                                        new Coord(currentCord.r, currentCord.c + 1),
+                                        direction,
+                                        currentSquare,
+                                        squareId
+                                    );
+                                }
+                                // we're outside the square. figure out which one we're going to
+                                Coord unRotated = new Coord(currentCord.r - currentSquare.r, 0);
+                                yield transferSquares(
+                                    cubeDescription,
+                                    squareId,
+                                    direction,
+                                    unRotated,
+                                    squares);
+                            }
+                            case 1 -> { // 'v'
+                                if (currentCord.r - currentSquare.r + 1 < cubeDescription.n ) {
+                                    yield new Movement(
+                                        new Coord(currentCord.r + 1, currentCord.c),
+                                        direction,
+                                        currentSquare,
+                                        squareId
+                                    );
+                                }
+                                // we're outside the square. figure out which one we're going to
+                                Coord unRotated = new Coord(0, currentCord.c- currentSquare.c) ;
+                                yield transferSquares(
+                                    cubeDescription,
+                                    squareId,
+                                    direction,
+                                    unRotated,
+                                    squares);
+                            }
+                            case 2 -> { // '<'
+                                if (currentCord.c - currentSquare.c - 1 >= 0 ) {
+                                    yield new Movement(
+                                        new Coord(currentCord.r, currentCord.c - 1),
+                                        direction,
+                                        currentSquare,
+                                        squareId
+                                    );
+                                }
+                                // we're outside the square. figure out which one we're going to
+                                Coord unRotated = new Coord(
+                                    currentCord.r - currentSquare.r,
+                                    cubeDescription.n - 1) ;
+                                yield transferSquares(
+                                    cubeDescription,
+                                    squareId,
+                                    direction,
+                                    unRotated,
+                                    squares);
+                            }
+                            case 3 -> { // '^'
+                                if (currentCord.r - 1 - currentSquare.r >= 0 ) {
+                                    yield new Movement(
+                                        new Coord(currentCord.r - 1, currentCord.c),
+                                        direction,
+                                        currentSquare,
+                                        squareId
+                                    );
+                                }
+                                // we're outside the square. figure out which one we're going to
+                                Coord unRotated = new Coord(
+                                    cubeDescription.n - 1,
+                                    currentCord.c - currentSquare.c
+                                    ) ;
+                                yield transferSquares(
+                                    cubeDescription,
+                                    squareId,
+                                    direction,
+                                    unRotated,
+                                    squares);
+
+                            }
+                            default -> throw new IllegalStateException();
+                        };
+
+                        char ch = puzzle.map.get(nextMove.nextCoord.r).charAt(nextMove.nextCoord.c);
+                        if (ch == '#') {
+                            break; // going to hit a wall don't update anything
+                        } else if (ch == ' ') {
+                            printMap(step, puzzle.map, visited);
+                            throw new IllegalStateException(
+                                "shouldn't hit an empty square"
+                                + " step=" + step
+                                + " nextMove=" + nextMove
+                            );
+                        } else if (ch == '.') {
+                            currentCord = nextMove.nextCoord;
+                            direction = nextMove.nextDirection;
+                            currentSquare = nextMove.nextSquare;
+                            squareId = nextMove.nextSquareId;
+                            if (DEBUG) {
+                                char directionChar = switch (direction) {
+                                    case 0 -> '>';
+                                    case 1 -> 'v';
+                                    case 2 -> '<';
+                                    case 3 -> '^';
+                                    default -> throw new IllegalStateException();
+                                };
+                                visited.put(currentCord, directionChar);
+                            }
+                        } else {
+                            throw new IllegalStateException("Unexpected character '" + ch + "' at " + nextMove.nextCoord);
+                        }
+                    }
+                    printMap(step, puzzle.map, visited);
+                }
+                case TurnClockwise() -> {
+                    direction = direction + 1;
+                    if (direction > 3) {
+                        direction = 0;
+                    }
+                }
+                case TurnCounterClockwise() -> {
+                    direction = direction - 1;
+                    if (direction < 0) {
+                        direction = 3;
+                    }
+                }
+                default -> throw new IllegalStateException();
+            }
+        }
+
+        int solution = 1000*(currentCord.r+1) + 4 * (currentCord.c+1) + (direction%4);
+        if (DEBUG) {
+            System.out.println(solution);
+        }
+        // The final password is the sum of 1000 times the row, 4 times the column, and the facing.
+        return solution;
     }
 
+    /**
+     * <pre>
+     * case 0 -> '>';
+     * case 1 -> 'v';
+     * case 2 -> '<';
+     * case 3 -> '^';
+     * </pre>
+     * @param cubeNum
+     * @param numRotations
+     */
     record CubeConnection(
         int cubeNum,
         int numRotations
@@ -460,6 +721,60 @@ public class Day22 {
          * X 2 X
          * 3 4
          * 5
+         * ----------------------
+         *   5
+         * 3 0 1
+         *   2
+         *
+         *   > : 1 - 0 rotations
+         *   v : 2 - 0 rotations
+         *   < : 3 - 2 rotations
+         *   ^ : 5 - 3 rotations
+         * ----------------------
+         *   0
+         * 0 1 4
+         *   2
+         *
+         *   > : 4 - 2 rotations
+         *   v : 2 - 3 rotations
+         *   < : 0 - 0 rotations
+         *   ^ : 5 - 0 rations
+         * ----------------------
+         *   0
+         * ? 2 ?
+         *   4
+         *
+         *   > :
+         *   v : 4 - 0 rotations
+         *   < :
+         *   ^ : 0 - 0 rotations
+         * ----------------------
+         *   ?
+         * ? 3 4
+         *   5
+         *
+         *   > : 4 - 0 rotations
+         *   v : 5 - 0 rotations
+         *   < :
+         *   ^ :
+         * ----------------------
+         *   2
+         * ? 4 ?
+         *   ?
+         *
+         *   > :
+         *   v :
+         *   < :
+         *   ^ : 2 - rotations
+         * ----------------------
+         *   3
+         * ? 5 ?
+         *   ?
+         *
+         *   > :
+         *   v :
+         *   < :
+         *   ^ : 3 - 0 rotations
          */
         String realInput = Files.readString(java.nio.file.Path.of("input/day_"+day+".txt"));
 
@@ -481,10 +796,10 @@ public class Day22 {
                     rotate matrix clockwise twice
                     */
                     List.of(
-                        new CubeConnection(1, 2), // above
-                        new CubeConnection(5, 2), // right
-                        new CubeConnection(3, 0), // down
-                        new CubeConnection(2, 1)  // left
+                        new CubeConnection(5, 2), // > right
+                        new CubeConnection(3, 0), // v down
+                        new CubeConnection(2, 1), // < left
+                        new CubeConnection(1, 2)  // ^ above
                     ),
             /*
             -----------------------------------------------
@@ -498,10 +813,10 @@ public class Day22 {
                 5 rotated three times
                     */
                     List.of(
-                        new CubeConnection(0, 2), // above
                         new CubeConnection(2, 0), // right
                         new CubeConnection(4, 2), // down
-                        new CubeConnection(5, 3)  // left
+                        new CubeConnection(5, 3),  // left
+                        new CubeConnection(0, 2) // above
                     ),
             /*
             -----------------------------------------------
@@ -515,10 +830,10 @@ public class Day22 {
                 4 - 1 rotation
                     */
                     List.of(
-                        new CubeConnection(0, 3), // above
                         new CubeConnection(3, 0), // right
                         new CubeConnection(4, 1), // down
-                        new CubeConnection(1, 0)  // left
+                        new CubeConnection(1, 0),  // left
+                        new CubeConnection(0, 3) // above
                     ),
             /*
             -----------------------------------------------
@@ -532,10 +847,10 @@ public class Day22 {
                 5 - 3 rotations
                     */
                     List.of(
-                        new CubeConnection(0, 0), // above
                         new CubeConnection(5, 3), // right
                         new CubeConnection(4, 0), // down
-                        new CubeConnection(2, 0)  // left
+                        new CubeConnection(2, 0),  // left
+                        new CubeConnection(0, 0) // above
                     ),
             /*
             -----------------------------------------------
@@ -549,10 +864,10 @@ public class Day22 {
                 5 - 0 rotations
                     */
                     List.of(
-                        new CubeConnection(3,0), // above
                         new CubeConnection(5,0), // right
                         new CubeConnection(1,2), // down
-                        new CubeConnection(2,3)  // left
+                        new CubeConnection(2,3),  // left
+                        new CubeConnection(3,0) // above
                     ),
             /*
             -----------------------------------------------
@@ -565,17 +880,20 @@ public class Day22 {
                 4 - 0 rotations
                     */
                     List.of(
-                        new CubeConnection(3,2), // above
                         new CubeConnection(0,2), // right
                         new CubeConnection(1,1), // down
-                        new CubeConnection(4,0)  // left
+                        new CubeConnection(4,0), // left
+                        new CubeConnection(3,2)  // above
                     )
                 )
             )
         );
 
         System.out.println("================== real ===============");
-        part2(realInput, new CubeDescription(50, null));
+        part2(realInput, new CubeDescription(50,
+            List.of(
+
+            )));
 
         DEBUG = false;
         System.out.println("Expected: "
