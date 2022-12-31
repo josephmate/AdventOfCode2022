@@ -349,14 +349,28 @@ public class Day22 {
         return new Coord( (size-1) - originalCoord.c, originalCoord.r);
     }
 
-    private static int figureOutDirection(
+    private static final int DIRECTION_RIGHT = 0;
+    private static final int DIRECTION_DOWN = 1;
+    private static final int DIRECTION_LEFT = 2;
+    private static final int DIRECTION_UP = 3;
+
+    private static int figureOutDirectionBuggy(
         Coord rotated,
         CubeDescription cubeDescription
     ) {
 
+        if (
+            (rotated.r == 0 && rotated.c == 0)
+            || (rotated.r == 0 && rotated.c == cubeDescription.n-1)
+            || (rotated.r == cubeDescription.n-1 && rotated.c == 0)
+            || (rotated.r == cubeDescription.n-1 && rotated.c == cubeDescription.n-1)
+        ) {
+            throw new IllegalStateException("rotate.r=" + rotated.r + " rotated.c=" + rotated.c + " is ambiguous");
+        }
+
         final int nextDirection;
         if (rotated.r == 0) {
-            nextDirection = 1;
+            nextDirection = DIRECTION_DOWN;
         } else if(rotated.r == cubeDescription.n-1) {
             nextDirection = 3;
         } else if (rotated.c == 0) {
@@ -377,6 +391,23 @@ public class Day22 {
 
     }
 
+    private static int rotateDirectionCounterClockwise(int direction) {
+        return switch (direction) {
+            case 0 -> 3;
+            case 1 -> 2;
+            case 2 -> 1;
+            case 3 -> 0;
+            default -> throw new IllegalStateException("direction=" + direction);
+        };
+    }
+    private static int rotateDirectionCounterClockwise(int direction,int times) {
+        int result = direction;
+        for (int i = 0; i < times; i++ ) {
+            result = rotateDirectionCounterClockwise(result);
+        }
+        return result;
+    }
+
     private static Movement transferSquares(
         CubeDescription cubeDescription,
         int squareId,
@@ -387,7 +418,7 @@ public class Day22 {
         CubeConnection cubeConnection = cubeDescription.cubeConnections.get(squareId).get(direction);
         Coord rotated  = rotateCounterclockwise(
             unRotated, cubeDescription.n, cubeConnection.numRotations);
-        int newDirection = figureOutDirection(rotated, cubeDescription);
+        int newDirection = rotateDirectionCounterClockwise(direction, cubeConnection.numRotations);
         SquareMapping nextSquare = squares[cubeConnection.cubeNum];
         return new Movement(
             new Coord(rotated.r + nextSquare.r, rotated.c + nextSquare.c),
@@ -405,7 +436,7 @@ public class Day22 {
              3) rotate back to relative to initial
              4) go back to 1 until movement is done
      */
-    private static long part2(String input, CubeDescription cubeDescription) {
+    static long part2(String input, CubeDescription cubeDescription) {
         Puzzle puzzle = parseInput(input);
 
         // break the puzzle up into six squares
@@ -607,6 +638,225 @@ public class Day22 {
 
     }
 
+    private static void incrementNestedMap(
+        Map<Integer, Map<Integer, Integer>> edgeCounts,
+        int a,
+        int b
+    ) {
+        Map<Integer, Integer> subMap = edgeCounts.get(a);
+        if (subMap == null) {
+            subMap = new HashMap<>();
+            edgeCounts.put(a, subMap);
+        }
+        subMap.put(b, subMap.getOrDefault(b,0) + 1);
+    }
+
+    private static void checkCubeDescription(CubeDescription cubeDescription) {
+        Map<Integer, Integer> squareIdToCount = new HashMap<>();
+        for(List<CubeConnection> connections : cubeDescription.cubeConnections) {
+            if (connections.size() != 4) {
+                throw new IllegalStateException("connections.size()=" + connections.size() + " but expected 4");
+            }
+            for (CubeConnection connection : connections) {
+                squareIdToCount.put(connection.cubeNum, squareIdToCount.getOrDefault(connection.cubeNum, 0) + 1);
+            }
+        }
+
+        if (squareIdToCount.size() != 6) {
+            throw new IllegalStateException("squareIdToCount.size()=" + squareIdToCount.size() + " but expected 6");
+        }
+
+        squareIdToCount.forEach((squareId, count) -> {
+            if (count != 4) {
+                throw new IllegalStateException("expected square " + squareId + " to have 4 connections but had " + count);
+            }
+        });
+
+        Map<Integer, Map<Integer, Integer>> edgeCounts = new HashMap<>();
+        for(List<CubeConnection> connections : cubeDescription.cubeConnections) {
+            // > right
+            int i = 0;
+            int direction = switch (connections.get(i).numRotations ) {
+                // 0 > right
+                // 1 v down
+                // 2 < left
+                // 3 ^ up
+                case 0 -> 2;
+                case 1 -> 1;
+                case 2 -> 0;
+                case 3 -> 3;
+                default -> throw new IllegalStateException("unrecongnized number of rotations " + connections.get(0).numRotations);
+            };
+            incrementNestedMap(edgeCounts, connections.get(i).cubeNum, direction);
+            i++;
+            // v down
+            direction = switch (connections.get(i).numRotations ) {
+                // 0 > right
+                // 1 v down
+                // 2 < left
+                // 3 ^ up
+                case 0 -> 3;
+                case 1 -> 2;
+                case 2 -> 1;
+                case 3 -> 0;
+                default -> throw new IllegalStateException("unrecongnized number of rotations " + connections.get(0).numRotations);
+            };
+            incrementNestedMap(edgeCounts, connections.get(i).cubeNum, direction);
+            i++;
+            // < left
+            direction = switch (connections.get(i).numRotations ) {
+                // 0 > right
+                // 1 v down
+                // 2 < left
+                // 3 ^ up
+                case 0 -> 0;
+                case 1 -> 3;
+                case 2 -> 2;
+                case 3 -> 1;
+                default -> throw new IllegalStateException("unrecongnized number of rotations " + connections.get(0).numRotations);
+            };
+            incrementNestedMap(edgeCounts, connections.get(i).cubeNum, direction);
+            i++;
+            // ^ up
+            direction = switch (connections.get(i).numRotations ) {
+                // 0 > right
+                // 1 v down
+                // 2 < left
+                // 3 ^ up
+                case 0 -> 1;
+                case 1 -> 0;
+                case 2 -> 3;
+                case 3 -> 2;
+                default -> throw new IllegalStateException("unrecongnized number of rotations " + connections.get(0).numRotations);
+            };
+            incrementNestedMap(edgeCounts, connections.get(i).cubeNum, direction);
+            i++;
+        }
+
+        if (edgeCounts.size() != 6) {
+            throw new IllegalStateException("edgeCounts.size()=" + edgeCounts.size() + " but expected 6");
+        }
+
+        edgeCounts.forEach((squareId, subMap) -> {
+            for(int i = 0; i <= 3; i++) {
+                if (!subMap.containsKey(i)) {
+                    System.err.println("squareId=" + squareId + " subMap missing key " + i + " subMap=" +subMap);
+                } else if (subMap.get(i) != 1) {
+                    System.err.println("squareId=" + squareId + " subMap has duplicated edge " + i + " subMap=" +subMap);
+                }
+            }
+
+        });
+    }
+
+    static CubeDescription sampleCubeDescription = new CubeDescription(4,
+        List.of(
+                    /*
+                1
+             2  0  5
+                3
+               3 down to the top of 3, heading down
+                    no rotation/ no flip
+               2 left to the top of 2, heading down
+                    rotate matrix clockwise
+               1 up to the top of 1
+                    rotate matrix clockwise twice
+               5 right to the left of 5
+                    rotate matrix clockwise twice
+                    */
+            List.of(
+                new CubeConnection(5, 2), // > right
+                new CubeConnection(3, 0), // v down
+                new CubeConnection(2, 1), // < left
+                new CubeConnection(1, 2)  // ^ above
+            ),
+            /*
+            -----------------------------------------------
+                0
+             5  1  2
+                4
+
+                0 rotated twice
+                2 no rotation
+                4 rotated twice
+                5 rotated three times
+                    */
+            List.of(
+                new CubeConnection(2, 0), // right
+                new CubeConnection(4, 2), // down
+                new CubeConnection(5, 3),  // left
+                new CubeConnection(0, 2) // above
+            ),
+            /*
+            -----------------------------------------------
+                0
+             1  2  3
+                4
+
+                0 is rotated 3 times
+                1 no rotation
+                3 no rotation
+                4 - 1 rotation
+                    */
+            List.of(
+                new CubeConnection(3, 0), // right
+                new CubeConnection(4, 1), // down
+                new CubeConnection(1, 0),  // left
+                new CubeConnection(0, 3) // above
+            ),
+            /*
+            -----------------------------------------------
+                0
+             2  3  5
+                4
+
+                0 - 0 rotation
+                2 - 0 rotation
+                4 - 0 rotation
+                5 - 3 rotations
+                    */
+            List.of(
+                new CubeConnection(5, 3), // right
+                new CubeConnection(4, 0), // down
+                new CubeConnection(2, 0),  // left
+                new CubeConnection(0, 0) // above
+            ),
+            /*
+            -----------------------------------------------
+                3
+             2  4  5
+                1
+
+                1 - 2 rotations
+                2 - 3 rotations
+                3 - 0 rotations
+                5 - 0 rotations
+                    */
+            List.of(
+                new CubeConnection(5,0), // right
+                new CubeConnection(1,2), // down
+                new CubeConnection(2,3),  // left
+                new CubeConnection(3,0) // above
+            ),
+            /*
+            -----------------------------------------------
+                3
+             4  5  0
+                1
+                0 - 2 rotations
+                1 - 1 rotation
+                3 - 1 rotations
+                4 - 0 rotations
+                    */
+            List.of(
+                new CubeConnection(0,2), // right
+                new CubeConnection(1,1), // down
+                new CubeConnection(4,0), // left
+                new CubeConnection(3,1)  // above
+            )
+        )
+    );
+
     public static void main(String[] args) throws IOException {
         int day = 22;
 
@@ -703,7 +953,7 @@ public class Day22 {
                 1
                 0 - 2 rotations
                 1 - 1 rotation
-                3 - 2 rotations
+                3 - 1 rotations
                 4 - 0 rotations
 
              ===== Option 3: tweak existing part1 to work
@@ -722,178 +972,166 @@ public class Day22 {
          * 3 4
          * 5
          * ----------------------
-         *   5
-         * 3 0 1
-         *   2
-         *
+         *   5     X 0 1
+         * 3 0 1   X 2 X
+         *   2     3 4
+         *         5
          *   > : 1 - 0 rotations
          *   v : 2 - 0 rotations
          *   < : 3 - 2 rotations
          *   ^ : 5 - 3 rotations
          * ----------------------
-         *   0
-         * 0 1 4
-         *   2
-         *
+         *   5     X 0 1
+         * 0 1 4   X 2 X
+         *   2     3 4
+         *         5
          *   > : 4 - 2 rotations
          *   v : 2 - 3 rotations
          *   < : 0 - 0 rotations
          *   ^ : 5 - 0 rations
          * ----------------------
-         *   0
-         * ? 2 ?
-         *   4
-         *
-         *   > :
+         *   0     X 0 1
+         * 3 2 1   X 2 X
+         *   4     3 4
+         *         5
+         *   > : 1 - 1 rotation
          *   v : 4 - 0 rotations
-         *   < :
+         *   < : 3 - 1 rotation
          *   ^ : 0 - 0 rotations
          * ----------------------
-         *   ?
-         * ? 3 4
-         *   5
-         *
+         *   2     X 0 1
+         * 0 3 4   X 2 X
+         *   5     3 4
+         *         5
          *   > : 4 - 0 rotations
          *   v : 5 - 0 rotations
-         *   < :
-         *   ^ :
+         *   < : 0 - 2 rotations
+         *   ^ : 2 - 3 rotations
          * ----------------------
-         *   2
-         * ? 4 ?
-         *   ?
-         *
-         *   > :
-         *   v :
-         *   < :
-         *   ^ : 2 - rotations
+         *   2     X 0 1
+         * 3 4 1   X 2 X
+         *   5     3 4
+         *         5
+         *   > : 1 - 2 rotations
+         *   v : 5 - 3 rotations
+         *   < : 3 - 0 rotations
+         *   ^ : 2 - 0 rotations
          * ----------------------
-         *   3
-         * ? 5 ?
-         *   ?
-         *
-         *   > :
-         *   v :
-         *   < :
+         *   3     X 0 1
+         * 0 5 4   X 2 X
+         *   1     3 4
+         *         5
+         *   > : 4 - 1 rotations
+         *   v : 1 - 0 rotations
+         *   < : 0 - 1 rotations
          *   ^ : 3 - 0 rotations
          */
         String realInput = Files.readString(java.nio.file.Path.of("input/day_"+day+".txt"));
 
         System.out.println("================== sample ===============");
+
         part2(
-            sampleInput, new CubeDescription(4,
-                List.of(
-                    /*
-                1
-             2  0  5
-                3
-               3 down to the top of 3, heading down
-                    no rotation/ no flip
-               2 left to the top of 2, heading down
-                    rotate matrix clockwise
-               1 up to the top of 1
-                    rotate matrix clockwise twice
-               5 right to the left of 5
-                    rotate matrix clockwise twice
-                    */
-                    List.of(
-                        new CubeConnection(5, 2), // > right
-                        new CubeConnection(3, 0), // v down
-                        new CubeConnection(2, 1), // < left
-                        new CubeConnection(1, 2)  // ^ above
-                    ),
-            /*
-            -----------------------------------------------
-                0
-             5  1  2
-                4
-
-                0 rotated twice
-                2 no rotation
-                4 rotated twice
-                5 rotated three times
-                    */
-                    List.of(
-                        new CubeConnection(2, 0), // right
-                        new CubeConnection(4, 2), // down
-                        new CubeConnection(5, 3),  // left
-                        new CubeConnection(0, 2) // above
-                    ),
-            /*
-            -----------------------------------------------
-                0
-             1  2  3
-                4
-
-                0 is rotated 3 times
-                1 no rotation
-                3 no rotation
-                4 - 1 rotation
-                    */
-                    List.of(
-                        new CubeConnection(3, 0), // right
-                        new CubeConnection(4, 1), // down
-                        new CubeConnection(1, 0),  // left
-                        new CubeConnection(0, 3) // above
-                    ),
-            /*
-            -----------------------------------------------
-                0
-             2  3  5
-                4
-
-                0 - 0 rotation
-                2 - 0 rotation
-                4 - 0 rotation
-                5 - 3 rotations
-                    */
-                    List.of(
-                        new CubeConnection(5, 3), // right
-                        new CubeConnection(4, 0), // down
-                        new CubeConnection(2, 0),  // left
-                        new CubeConnection(0, 0) // above
-                    ),
-            /*
-            -----------------------------------------------
-                3
-             2  4  5
-                1
-
-                1 - 2 rotations
-                2 - 3 rotations
-                3 - 0 rotations
-                5 - 0 rotations
-                    */
-                    List.of(
-                        new CubeConnection(5,0), // right
-                        new CubeConnection(1,2), // down
-                        new CubeConnection(2,3),  // left
-                        new CubeConnection(3,0) // above
-                    ),
-            /*
-            -----------------------------------------------
-                3
-             4  5  0
-                1
-                0 - 2 rotations
-                1 - 1 rotation
-                3 - 2 rotations
-                4 - 0 rotations
-                    */
-                    List.of(
-                        new CubeConnection(0,2), // right
-                        new CubeConnection(1,1), // down
-                        new CubeConnection(4,0), // left
-                        new CubeConnection(3,2)  // above
-                    )
-                )
-            )
+            sampleInput, sampleCubeDescription
         );
-
-        System.out.println("================== real ===============");
-        part2(realInput, new CubeDescription(50,
+        CubeDescription realCubeDescription = new CubeDescription(50,
             List.of(
-
-            )));
+                /* ----------------------
+                 *   5     X 0 1
+                 * 3 0 1   X 2 X
+                 *   2     3 4
+                 *         5
+                 *   > : 1 - 0 rotations
+                 *   v : 2 - 0 rotations
+                 *   < : 3 - 2 rotations
+                 *   ^ : 5 - 3 rotations
+                 */
+                List.of(
+                    new CubeConnection(1,0), // right
+                    new CubeConnection(2,0), // down
+                    new CubeConnection(3,2), // left
+                    new CubeConnection(5,3)  // above
+                ),
+                /* ----------------------
+                 *   5     X 0 1
+                 * 0 1 4   X 2 X
+                 *   2     3 4
+                 *         5
+                 *   > : 4 - 2 rotations
+                 *   v : 2 - 3 rotations
+                 *   < : 0 - 0 rotations
+                 *   ^ : 5 - 0 rations
+                 */
+                List.of(
+                    new CubeConnection(4,2), // right
+                    new CubeConnection(2,3), // down
+                    new CubeConnection(0,0), // left
+                    new CubeConnection(5,0)  // above
+                ),
+                /* ----------------------
+                 *   0     X 0 1
+                 * 3 2 1   X 2 X
+                 *   4     3 4
+                 *         5
+                 *   > : 1 - 1 rotation
+                 *   v : 4 - 0 rotations
+                 *   < : 3 - 1 rotation
+                 *   ^ : 0 - 0 rotations
+                 */
+                List.of(
+                    new CubeConnection(1,1), // right
+                    new CubeConnection(4,0), // down
+                    new CubeConnection(3,1), // left
+                    new CubeConnection(0,0)  // above
+                ),
+                /* ----------------------
+                 *   2     X 0 1
+                 * 0 3 4   X 2 X
+                 *   5     3 4
+                 *         5
+                 *   > : 4 - 0 rotations
+                 *   v : 5 - 0 rotations
+                 *   < : 0 - 2 rotations
+                 *   ^ : 2 - 3 rotations
+                 */
+                List.of(
+                    new CubeConnection(4,0), // right
+                    new CubeConnection(5,0), // down
+                    new CubeConnection(0,2), // left
+                    new CubeConnection(2,3)  // above
+                ),
+                /* ----------------------
+                 *   2     X 0 1
+                 * 3 4 1   X 2 X
+                 *   5     3 4
+                 *         5
+                 *   > : 1 - 2 rotations
+                 *   v : 5 - 3 rotations
+                 *   < : 3 - 0 rotations
+                 *   ^ : 2 - 0 rotations
+                 */
+                List.of(
+                    new CubeConnection(1,2), // right
+                    new CubeConnection(5,3), // down
+                    new CubeConnection(3,0), // left
+                    new CubeConnection(2,0)  // above
+                ),
+                /* ----------------------
+                 *   3     X 0 1
+                 * 0 5 4   X 2 X
+                 *   1     3 4
+                 *         5
+                 *   > : 4 - 1 rotations
+                 *   v : 1 - 0 rotations
+                 *   < : 0 - 1 rotations
+                 *   ^ : 3 - 0 rotations
+                 */
+                List.of(
+                    new CubeConnection(4,1), // right
+                    new CubeConnection(1,0), // down
+                    new CubeConnection(0,1), // left
+                    new CubeConnection(3,0)  // above
+                )
+            ));
 
         DEBUG = false;
         System.out.println("Expected: "
@@ -902,11 +1140,15 @@ public class Day22 {
             + part1(sampleInput));
         System.out.println("Solution: "
             + part1(realInput));
-//
-//        System.out.println("Expected: "
-//            + Files.readString(java.nio.file.Path.of("input/day_"+day+"_sample_part2_expected.txt")));
-//        System.out.println("Actual:   " +  part2(sampleInput));
-//        System.out.println("Solution: " +  part2(realInput));
+
+        System.out.println("Checking sample");
+        checkCubeDescription(sampleCubeDescription);
+        System.out.println("Checking real");
+        checkCubeDescription(realCubeDescription);
+        System.out.println("Expected: "
+            + Files.readString(java.nio.file.Path.of("input/day_"+day+"_sample_part2_expected.txt")));
+        System.out.println("Actual:   " +  part2(sampleInput, sampleCubeDescription));
+        System.out.println("Solution: " +  part2(realInput, realCubeDescription));
 
     }
 }
