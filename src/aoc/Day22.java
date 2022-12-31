@@ -394,9 +394,9 @@ public class Day22 {
     private static int rotateDirectionCounterClockwise(int direction) {
         return switch (direction) {
             case 0 -> 3;
-            case 1 -> 2;
+            case 1 -> 0;
             case 2 -> 1;
-            case 3 -> 0;
+            case 3 -> 2;
             default -> throw new IllegalStateException("direction=" + direction);
         };
     }
