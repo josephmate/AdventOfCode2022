@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -108,83 +109,182 @@ public class Day19 {
 
     }
 
+    private static Optional<SearchIteration> buyOreBot(
+        SearchIteration current, Blueprint blueprint
+    ) {
+        int oreSoFar = current.ore;
+        int claySoFar = current.clay;
+        int obsidianSoFar = current.obsidian;
+        int geodeSoFar = current.geode;
+        for (int i = current.minute; i <= 24-2; i++) {
+            if (oreSoFar >= blueprint.oreRobotOreCost) {
+                oreSoFar = oreSoFar - blueprint.oreRobotOreCost;
+                return Optional.of(new SearchIteration(
+                    i+1,//int minute,
+                    oreSoFar + current.oreRobots, //int ore,
+                    claySoFar +  current.clayRobots, //int clay,
+                    obsidianSoFar + current.obsidianRobots, //int obsidian,
+                    geodeSoFar + current.geodeRobots, //int geode,
+                    current.oreRobots + 1, //int oreRobots,
+                    current.clayRobots, //int clayRobots,
+                    current.obsidianRobots, //int obsidianRobots,
+                    current.geodeRobots  //int geodeRobots
+                ));
+            }
+            oreSoFar += current.oreRobots;
+            claySoFar += current.clayRobots;
+            obsidianSoFar += current.obsidianRobots;
+            geodeSoFar += current.geodeRobots;
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<SearchIteration> buyClayBot(
+        SearchIteration current, Blueprint blueprint
+    ) {
+        int oreSoFar = current.ore;
+        int claySoFar = current.clay;
+        int obsidianSoFar = current.obsidian;
+        int geodeSoFar = current.geode;
+        for (int i = current.minute; i <= 24-2; i++) {
+            if (oreSoFar >= blueprint.clayRobotOreCost) {
+                oreSoFar = oreSoFar - blueprint.clayRobotOreCost;
+                return Optional.of(new SearchIteration(
+                    i+1,//int minute,
+                    oreSoFar + current.oreRobots, //int ore,
+                    claySoFar +  current.clayRobots, //int clay,
+                    obsidianSoFar + current.obsidianRobots, //int obsidian,
+                    geodeSoFar + current.geodeRobots, //int geode,
+                    current.oreRobots, //int oreRobots,
+                    current.clayRobots + 1, //int clayRobots,
+                    current.obsidianRobots, //int obsidianRobots,
+                    current.geodeRobots  //int geodeRobots
+                ));
+            }
+            oreSoFar += current.oreRobots;
+            claySoFar += current.clayRobots;
+            obsidianSoFar += current.obsidianRobots;
+            geodeSoFar += current.geodeRobots;
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<SearchIteration> buyObsidianBot(
+        SearchIteration current, Blueprint blueprint
+    ) {
+        if (current.clayRobots == 0) {
+            return Optional.empty();
+        }
+
+        int oreSoFar = current.ore;
+        int claySoFar = current.clay;
+        int obsidianSoFar = current.obsidian;
+        int geodeSoFar = current.geode;
+        for (int i = current.minute; i <= 24-2; i++) {
+            if (oreSoFar >= blueprint.obsidianRobotOreCost
+                && claySoFar >= blueprint.obsidianRobotClayCost
+            ) {
+                oreSoFar = oreSoFar - blueprint.obsidianRobotOreCost;
+                claySoFar = claySoFar - blueprint.obsidianRobotClayCost;
+                return Optional.of(new SearchIteration(
+                    i+1,//int minute,
+                    oreSoFar + current.oreRobots, //int ore,
+                    claySoFar +  current.clayRobots, //int clay,
+                    obsidianSoFar + current.obsidianRobots, //int obsidian,
+                    geodeSoFar + current.geodeRobots, //int geode,
+                    current.oreRobots, //int oreRobots,
+                    current.clayRobots, //int clayRobots,
+                    current.obsidianRobots + 1, //int obsidianRobots,
+                    current.geodeRobots  //int geodeRobots
+                ));
+            }
+            oreSoFar += current.oreRobots;
+            claySoFar += current.clayRobots;
+            obsidianSoFar += current.obsidianRobots;
+            geodeSoFar += current.geodeRobots;
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<SearchIteration> buyGeodeBot(
+        SearchIteration current, Blueprint blueprint
+    ) {
+        if (current.obsidianRobots == 0) {
+            return Optional.empty();
+        }
+
+        int oreSoFar = current.ore;
+        int claySoFar = current.clay;
+        int obsidianSoFar = current.obsidian;
+        int geodeSoFar = current.geode;
+        for (int i = current.minute; i <= 24-2; i++) {
+            if (oreSoFar >= blueprint.geodeRobotOreCost
+                && obsidianSoFar >= blueprint.geodeRobotObsidianCost
+            ) {
+                oreSoFar = oreSoFar - blueprint.geodeRobotOreCost;
+                obsidianSoFar = obsidianSoFar - blueprint.geodeRobotObsidianCost;
+                return Optional.of(new SearchIteration(
+                    i+1,//int minute,
+                    oreSoFar + current.oreRobots, //int ore,
+                    claySoFar +  current.clayRobots, //int clay,
+                    obsidianSoFar + current.obsidianRobots, //int obsidian,
+                    geodeSoFar + current.geodeRobots, //int geode,
+                    current.oreRobots, //int oreRobots,
+                    current.clayRobots, //int clayRobots,
+                    current.obsidianRobots, //int obsidianRobots,
+                    current.geodeRobots + 1  //int geodeRobots
+                ));
+            }
+            oreSoFar += current.oreRobots;
+            claySoFar += current.clayRobots;
+            obsidianSoFar += current.obsidianRobots;
+            geodeSoFar += current.geodeRobots;
+        }
+        return Optional.empty();
+    }
+
+    private static List<BiFunction<SearchIteration, Blueprint, Optional<SearchIteration>>> BUYERS =
+        List.of(
+            Day19::buyOreBot,
+            Day19::buyClayBot,
+            Day19::buyObsidianBot,
+            Day19::buyGeodeBot
+        );
+
+    /**
+     * 5 possible moves over 24 minutes:
+     * 5^24 possibilities
+     *
+     * How can we reduce the search space?
+     * Option 1: Start from the goal instead?
+     *   - decided against this because you still have the same problem, just in reverse
+     *
+     * Option 2 : Reduce search space
+     * - tried with the map of minute to score
+     *   - got complicated
+     *     - how do you pick the score?
+     *     - how close to the best so far?
+     * - don't move one minute at a time
+     *   - always gonna buy/build a robot so just do that directly
+     *     don't
+     *     - only 4 options now: ore, clay, obsidian, geode bot
+     *     - need at least 2 minutes to save enough to buy (at least 2 ores needed)
+     *     - 4^12
+     *     - comparing bits
+     *       - log(5^24)/log(2) = 55
+     *       - log(4^12)/log(2) = 24
+     *
+     * @param current
+     * @param blueprint
+     * @return
+     */
     private static List<SearchIteration> generateMoves(SearchIteration current, Blueprint blueprint) {
-        List<SearchIteration> result = new ArrayList<>();
-        int nextMinute = current.minute + 1;
-
-        // saving
-        result.add(new SearchIteration(
-            nextMinute,//int minute,
-            current.ore, //int ore,
-            current.clay, //int clay,
-            current.obsidian, //int obsidian,
-            current.geode, //int geode,
-            current.oreRobots, //int oreRobots,
-            current.clayRobots, //int clayRobots,
-            current.obsidianRobots, //int obsidianRobots,
-            current.geodeRobots  //int geodeRobots
-        ));
-
-        if (current.ore >= blueprint.oreRobotOreCost) {
-            result.add(new SearchIteration(
-                nextMinute,//int minute,
-                current.ore - blueprint.oreRobotOreCost, //int ore,
-                current.clay, //int clay,
-                current.obsidian, //int obsidian,
-                current.geode, //int geode,
-                current.oreRobots + 1, //int oreRobots,
-                current.clayRobots, //int clayRobots,
-                current.obsidianRobots, //int obsidianRobots,
-                current.geodeRobots  //int geodeRobots
-            ));
-        }
-        if (current.ore >= blueprint.clayRobotOreCost) {
-            result.add(new SearchIteration(
-                nextMinute,//int minute,
-                current.ore - blueprint.clayRobotOreCost, //int ore,
-                current.clay, //int clay,
-                current.obsidian, //int obsidian,
-                current.geode, //int geode,
-                current.oreRobots, //int oreRobots,
-                current.clayRobots + 1, //int clayRobots,
-                current.obsidianRobots, //int obsidianRobots,
-                current.geodeRobots  //int geodeRobots
-            ));
-        }
-        if (
-            current.ore >= blueprint.obsidianRobotOreCost
-            && current.clay >= blueprint.obsidianRobotClayCost
-        ) {
-            result.add(new SearchIteration(
-                nextMinute,//int minute,
-                current.ore - blueprint.obsidianRobotOreCost, //int ore,
-                current.clay - blueprint.obsidianRobotClayCost, //int clay,
-                current.obsidian, //int obsidian,
-                current.geode, //int geode,
-                current.oreRobots, //int oreRobots,
-                current.clayRobots, //int clayRobots,
-                current.obsidianRobots + 1, //int obsidianRobots,
-                current.geodeRobots  //int geodeRobots
-            ));
-        }
-        if (
-            current.ore >= blueprint.geodeRobotOreCost
-            && current.obsidian >= blueprint.geodeRobotObsidianCost
-        ) {
-            result.add(new SearchIteration(
-                nextMinute,//int minute,
-                current.ore - blueprint.geodeRobotOreCost, //int ore,
-                current.clay, //int clay,
-                current.obsidian - blueprint.geodeRobotObsidianCost, //int obsidian,
-                current.geode, //int geode,
-                current.oreRobots, //int oreRobots,
-                current.clayRobots, //int clayRobots,
-                current.obsidianRobots, //int obsidianRobots,
-                current.geodeRobots + 1 //int geodeRobots
-            ));
-        }
-
-        return result;
+        return BUYERS.stream()
+            .map( (f) -> f.apply(current, blueprint) )
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            //.map(noResourceYet -> applyOre(current, noResourceYet))
+            .collect(Collectors.toList());
     }
 
     /**
@@ -240,12 +340,14 @@ public class Day19 {
         SearchIteration current,
         SearchIteration moveWithoutOre
     ) {
+        int timePassed = moveWithoutOre.minute - current.minute;
+
         return new SearchIteration(
             moveWithoutOre.minute,//int minute,
-            moveWithoutOre.ore + current.oreRobots, //int ore,
-            moveWithoutOre.clay + current.clayRobots, //int clay,
-            moveWithoutOre.obsidian + current.obsidianRobots, //int obsidian,
-            moveWithoutOre.geode + current.geodeRobots, //int geode,
+            moveWithoutOre.ore      + (current.oreRobots     *timePassed), //int ore,
+            moveWithoutOre.clay     + (current.clayRobots    *timePassed), //int clay,
+            moveWithoutOre.obsidian + (current.obsidianRobots*timePassed), //int obsidian,
+            moveWithoutOre.geode    + (current.geodeRobots   *timePassed), //int geode,
             moveWithoutOre.oreRobots, //int oreRobots,
             moveWithoutOre.clayRobots, //int clayRobots,
             moveWithoutOre.obsidianRobots, //int obsidianRobots,
@@ -255,27 +357,29 @@ public class Day19 {
 
     private static int score(SearchIteration move, Blueprint blueprint) {
         return
-            2 * (
-                move.ore
-                + move.oreRobots*blueprint.oreRobotOreCost
-                + move.clayRobots*blueprint.clayRobotOreCost
-                + move.obsidianRobots*blueprint.obsidianRobotOreCost
-                + move.oreRobots*(24-move.minute)
-            )
-            + 1 * (
-                move.clay
-                + move.obsidianRobots * blueprint.obsidianRobotClayCost
-                + move.clay*(24-move.minute)
-            )
-            + 10 * (
-                move.obsidian
-                + move.geodeRobots * blueprint.geodeRobotObsidianCost
-                + move.obsidianRobots*(24-move.minute)
-            )
-            + 100 * (
-                move.geode
-                + move.geodeRobots*(24-move.minute)
-            )
+//            2 * (
+//                move.ore
+//                + move.oreRobots*blueprint.oreRobotOreCost
+//                + move.clayRobots*blueprint.clayRobotOreCost
+//                + move.obsidianRobots*blueprint.obsidianRobotOreCost
+//                + move.oreRobots*(24-move.minute)
+//            )
+//            + 1 * (
+//                move.clay
+//                + move.obsidianRobots * blueprint.obsidianRobotClayCost
+//                + move.clay*(24-move.minute)
+//            )
+//            + 10 * (
+//                move.obsidian
+//                + move.geodeRobots * blueprint.geodeRobotObsidianCost
+//                + move.obsidianRobots*(24-move.minute)
+//            )
+//            + 100 * (
+//                move.geode
+//                + move.geodeRobots*(24-move.minute)
+//            )
+              move.geode
+                  + move.geodeRobots*(24-move.minute)
             ;
     }
 
@@ -305,7 +409,7 @@ public class Day19 {
         visited.put(0, score(start, blueprint));
         priorityQueue.add(start);
 
-        final int percent = 50;
+        final int percent = 100;
 
         while (!priorityQueue.isEmpty()) {
             SearchIteration current = priorityQueue.remove();
@@ -313,23 +417,43 @@ public class Day19 {
             int currentBestScoreSoFar = visited.getOrDefault(current.minute, 0);
             if (current.minute == 24) {
                 if (current.geode > maxSoFar) {
-                    System.out.println(maxSoFar);
                     maxSoFar = current.geode;
+                    System.out.println(maxSoFar);
                 }
             } else if (currentMoveScore >= (percent*currentBestScoreSoFar)/100) {
                 // generate moves
                 List<SearchIteration> moves = generateMoves(current, blueprint)
                     .stream()
-                    // generate ore
-                    .map(move -> applyOre(current, move))
                     .collect(Collectors.toList());
-                for(SearchIteration move: moves) {
-                    int nextMoveScore = score(move, blueprint);
-                    int nextMoveBestScoreSoFar = visited.getOrDefault(move.minute, 0);
-                    if (nextMoveScore >= (percent*nextMoveBestScoreSoFar)/100) {
-                        priorityQueue.add(move);
-                        if (nextMoveScore > nextMoveBestScoreSoFar) {
-                            visited.put(move.minute, nextMoveScore);
+
+                if (moves.isEmpty()) {
+                    // no moves left
+                    // save until the end
+                    priorityQueue.add(
+                        applyOre(
+                            current,
+                            new SearchIteration(
+                                24,//int minute,
+                                current.ore, //int ore,
+                                current.clay, //int clay,
+                                current.obsidian, //int obsidian,
+                                current.geode, //int geode,
+                                current.oreRobots, //int oreRobots,
+                                current.clayRobots, //int clayRobots,
+                                current.obsidianRobots, //int obsidianRobots,
+                                current.geodeRobots  //int geodeRobots
+                            )
+                        )
+                    );
+                } else {
+                    for(SearchIteration move: moves) {
+                        int nextMoveScore = score(move, blueprint);
+                        int nextMoveBestScoreSoFar = visited.getOrDefault(move.minute, 0);
+                        if (nextMoveScore >= (percent*nextMoveBestScoreSoFar)/100) {
+                            priorityQueue.add(move);
+                            if (nextMoveScore > nextMoveBestScoreSoFar) {
+                                visited.put(move.minute, nextMoveScore);
+                            }
                         }
                     }
                 }
