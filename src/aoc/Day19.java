@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * <a href="https://adventofcode.com/2022/day/19>Day 19: Not Enough Minerals</a>
@@ -110,9 +111,11 @@ public class Day19 {
     }
 
     private static Optional<SearchIteration> buyOreBot(
-        SearchIteration current, Blueprint blueprint, int minutesAvailable
+        SearchIteration current, Blueprint blueprint,
+        int minutesAvailable,
+        int maxOreRobotsNeeded
     ) {
-        if (current.oreRobots >= 7) {
+        if (current.oreRobots >= maxOreRobotsNeeded) {
             return Optional.empty();
         }
         int oreSoFar = current.ore;
@@ -143,9 +146,12 @@ public class Day19 {
     }
 
     private static Optional<SearchIteration> buyClayBot(
-        SearchIteration current, Blueprint blueprint, int minutesAvailable
+        SearchIteration current,
+        Blueprint blueprint,
+        int minutesAvailable,
+        int maxClayBotsNeeded
     ) {
-        if (current.clayRobots >= 10) {
+        if (current.clayRobots >= maxClayBotsNeeded) {
             return Optional.empty();
         }
         int oreSoFar = current.ore;
@@ -176,9 +182,10 @@ public class Day19 {
     }
 
     private static Optional<SearchIteration> buyObsidianBot(
-        SearchIteration current, Blueprint blueprint, int minutesAvailable
+        SearchIteration current, Blueprint blueprint, int minutesAvailable,
+        int maxObsidianBotsNeeded
     ) {
-        if (current.clayRobots == 0) {
+        if (current.clayRobots == 0 || current.obsidianRobots >= maxObsidianBotsNeeded) {
             return Optional.empty();
         }
 
@@ -276,11 +283,18 @@ public class Day19 {
      * @param blueprint
      * @return
      */
-    private static List<SearchIteration> generateMoves(SearchIteration current, Blueprint blueprint, int minutesAvailable) {
+    private static List<SearchIteration> generateMoves(
+        SearchIteration current,
+        Blueprint blueprint,
+        int minutesAvailable,
+        int maxOreRobotsNeeded,
+        int maxClayRobotsNeeded,
+        int maxObsidianRobotsNeeded
+    ) {
         return List.of(
-                buyOreBot(current,blueprint, minutesAvailable),
-                buyClayBot(current,blueprint, minutesAvailable),
-                buyObsidianBot(current,blueprint, minutesAvailable),
+                buyOreBot(current,blueprint, minutesAvailable, maxOreRobotsNeeded),
+                buyClayBot(current,blueprint, minutesAvailable, maxClayRobotsNeeded),
+                buyObsidianBot(current,blueprint, minutesAvailable, maxObsidianRobotsNeeded),
                 buyGeodeBot(current,blueprint, minutesAvailable)
             )
             .stream()
@@ -419,6 +433,18 @@ public class Day19 {
         scorePruner.put(0, score(start, blueprint, minutesAvailable));
         priorityQueue.add(start);
 
+        // optimization
+        int maxOreRobotsNeeded = IntStream.of(
+                blueprint.oreRobotOreCost,
+                blueprint.clayRobotOreCost,
+                blueprint.obsidianRobotOreCost,
+                blueprint.geodeRobotOreCost
+            )
+            .max()
+            .orElseThrow();
+        int maxClayRobotsNeeded = blueprint.obsidianRobotClayCost;
+        int maxObsidianNeeded = blueprint.geodeRobotObsidianCost;
+
         while (!priorityQueue.isEmpty()) {
             SearchIteration current = priorityQueue.remove();
             int currentMoveScore = score(current, blueprint, minutesAvailable);
@@ -430,7 +456,14 @@ public class Day19 {
                 }
             } else if (currentMoveScore >= (percentMap[current.minute]*currentBestScoreSoFar)/100) {
                 // generate moves
-                List<SearchIteration> moves = generateMoves(current, blueprint, minutesAvailable)
+                List<SearchIteration> moves = generateMoves(
+                    current,
+                    blueprint,
+                    minutesAvailable,
+                    maxOreRobotsNeeded,
+                    maxClayRobotsNeeded,
+                    maxObsidianNeeded
+                    )
                     .stream()
                     .collect(Collectors.toList());
 
@@ -521,38 +554,38 @@ public class Day19 {
         int numOfBluePrints = Math.min(3, blueprints.size());
 
         int [] percentMap = new int[]{
-            50, // 0
-            50, // 1
-            50, // 2
-            50, // 3
-            50, // 4
-            50, // 5
-            50, // 6
-            50, // 7
-            50, // 8
-            50, // 9
-            50, // 10
-            50, // 11
-            50, // 12
-            50, // 13
-            50, // 14
-            50, // 15
-            50, // 16
-            50, // 17
-            50, // 18
-            50, // 19
-            50, // 20
-            50, // 21 75 here breaks part2 sample blueprint 1 54 instead of 56
-            50, // 22
-            50, // 23
-            50, // 24
-            50, // 25
-            50, // 26
-            70, // 27
-            90, // 28
-            90, // 29
-            95, // 30
-            99, // 31
+            0, // 0
+            0, // 1
+            0, // 2
+            0, // 3
+            0, // 4
+            0, // 5
+            0, // 6
+            0, // 7
+            0, // 8
+            0, // 9
+            0, // 10
+            0, // 11
+            0, // 12
+            0, // 13
+            0, // 14
+            0, // 15
+            0, // 16
+            0, // 17
+            0, // 18
+            0, // 19
+            0, // 20
+            0, // 21 75 here breaks part2 sample blueprint 1 54 instead of 56
+            0, // 22
+            0, // 23
+            0, // 24
+            0, // 25
+            0, // 26
+            50, // 27
+            50, // 28
+            50, // 29
+            90, // 30
+            90, // 31
             100 // 32
         };
 
